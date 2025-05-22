@@ -88,8 +88,7 @@ SELECT uuid_generate_v4();
 │   ├── modules
 │   │   ├── base_module                 - базовый модуль, в нем хранятся наследуемые объекты
 │   │   ├── catalogues_module           - модуль справочников
-│   │   ├── healthcheck_module          - healthcheck module
-│   │   └── principals_module           - модуль доверителей
+│   │   └── healthcheck_module          - healthcheck module
 │   ├── resources                       - хранение констант
 │   │   └── constants.py
 │   ├── services                        - базовые сервисные ошибки
