@@ -1,0 +1,10 @@
+logs/*
+**/__pycache__
+venv/
+venv
+.env
+**/TODO.md
+.pytest_cache
+.ropeproject
+db/*
+dumps/*
