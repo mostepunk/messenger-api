@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.modules.base_module.db.models.base import Base
 
 if TYPE_CHECKING:
-    from app.modules.database_module.db.models.lawyer import LawyerModel
+    from app.modules.chat_module.db.models.profile import ProfileModel
 
 
 class AccountModel(Base):
@@ -19,10 +19,12 @@ class AccountModel(Base):
     description: Mapped[str | None]
     is_confirmed: Mapped[bool] = mapped_column(default=False)
     confirmation_token: Mapped[str | None] = mapped_column(String(300))
+    profile_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
 
     sessions: Mapped[list["AccountSessionModel"] | None] = relationship(
         lazy="joined", cascade="all, delete-orphan"
     )
+    profile: Mapped["ProfileModel"] = relationship(lazy="joined")
 
 
 class AccountSessionModel(Base):

@@ -13,6 +13,7 @@ class ModuleSettings(BaseSettings):
         "healthcheck_module",
         "auth_module",
         "base_module",
+        "chat_module",
         # "catalogues_module",
     ]
 

@@ -3,7 +3,6 @@ import random
 from faker import Faker
 from faker.providers import BaseProvider, DynamicProvider, file, misc
 
-from app.modules.auth_module.db.factories.account import accounts
 from app.modules.catalogues_module.db.factories.catalogues import CATALOGUES_DATA
 
 fake = Faker("ru_RU")
@@ -45,18 +44,27 @@ class ClearPhoneProvider(BaseProvider):
             ]
         )
         numbers = "".join([str(random.choice(range(9))) for i in range(7)])
-        return f"7{code}{numbers}"
+        return f"+7{code}{numbers}"
 
 
-class AccountIdProvider(BaseProvider):
-    """Вставка одного из созданных клиентов."""
+# from app.modules.auth_module.db.factories.account import accounts
+# LEN_ACCOUNTS = len(accounts["data"])
+# class AccountIdProvider(BaseProvider):
+#     """Вставка одного из созданных клиентов."""
+#     def account_id(self):
+#         ids = [acc["id"] for acc in accounts["data"]]
+#         return random.choice(ids)
 
-    def account_id(self):
-        ids = [acc["id"] for acc in accounts["data"]]
-        return random.choice(ids)
+
+# from app.modules.chat_module.db.factories.profile import profiles
+# class ProfileProvider(BaseProvider):
+#     """Вставка одного из созданных профилей."""
+#     def profile_id():
+#         ids = [profile["id"] for profile in profiles["data"]]
+#         id = random.choice(ids)
+#         return ids.pop(id)
 
 
-# TODO: Решить, что делать с этими каталогами
 for provider in CATALOGUES_DATA:
     fake.add_provider(
         DynamicProvider(
@@ -66,6 +74,7 @@ for provider in CATALOGUES_DATA:
     )
 
 fake.add_provider(ClearPhoneProvider)
-fake.add_provider(AccountIdProvider)
+# fake.add_provider(AccountIdProvider)
+# fake.add_provider(ProfileProvider)
 fake.add_provider(file)
 fake.add_provider(misc)

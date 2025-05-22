@@ -15,6 +15,7 @@ from app.modules.catalogues_module.db.factories.catalogues import CATALOGUES_DAT
 from app.modules.catalogues_module.utils.generate_sql_for_catalogues import (
     generate_insert_sql,
 )
+from app.modules.chat_module.db.factories.profile import profile_personal_data, profiles
 from app.modules.notify_module.db.factories.factory import (
     notification_attachments,
     notification_templates,
@@ -66,6 +67,8 @@ def fill_tables_with_fake_data():
         accounts,
         notification_templates,
         notification_attachments,
+        profiles,
+        profile_personal_data,
     ]
     with SYNC_SESSION() as session:
         for sql in generate_insert_sql(CATALOGUES_DATA):
