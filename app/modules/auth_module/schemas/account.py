@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from pydantic import Field, model_validator
@@ -18,6 +19,9 @@ from app.modules.base_module.schemas.customs import (
     PasswordStr,
 )
 
+if TYPE_CHECKING:
+    from app.modules.chat_module.schemas.profile_schemas import ProfileDBSchema
+
 
 class AccountBase(BaseSchema):
     email: EmailStr = Field(example="user@example.com")
@@ -32,6 +36,7 @@ class AccountDBSchema(AccountBase, BaseDB):
     is_confirmed: bool
     password: str
     sessions: list[AccountSessionBaseSchema] | None = None
+    profile: "ProfileDBSchema" = Field(description="профиль пользователя")
 
     @property
     def confirm_token(self):

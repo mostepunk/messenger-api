@@ -47,24 +47,6 @@ class ClearPhoneProvider(BaseProvider):
         return f"+7{code}{numbers}"
 
 
-# from app.modules.auth_module.db.factories.account import accounts
-# LEN_ACCOUNTS = len(accounts["data"])
-# class AccountIdProvider(BaseProvider):
-#     """Вставка одного из созданных клиентов."""
-#     def account_id(self):
-#         ids = [acc["id"] for acc in accounts["data"]]
-#         return random.choice(ids)
-
-
-# from app.modules.chat_module.db.factories.profile import profiles
-# class ProfileProvider(BaseProvider):
-#     """Вставка одного из созданных профилей."""
-#     def profile_id():
-#         ids = [profile["id"] for profile in profiles["data"]]
-#         id = random.choice(ids)
-#         return ids.pop(id)
-
-
 for provider in CATALOGUES_DATA:
     fake.add_provider(
         DynamicProvider(
@@ -74,7 +56,5 @@ for provider in CATALOGUES_DATA:
     )
 
 fake.add_provider(ClearPhoneProvider)
-# fake.add_provider(AccountIdProvider)
-# fake.add_provider(ProfileProvider)
 fake.add_provider(file)
 fake.add_provider(misc)

@@ -14,5 +14,14 @@ async def startup_application(app: FastAPI):
 
     """
     logging.info("Startup application")
+    from app.modules.chat_module.schemas.profile_schemas import ProfileDBSchema, ProfileSchema
+    from app.modules.auth_module.schemas.account import AccountDBSchema
+    from app.modules.chat_module.schemas.chat_schemas import ChatSchema, ChatDBSchema, DetailedChatSchema
+
+    AccountDBSchema.model_rebuild()
+    ChatSchema.model_rebuild()
+    ProfileDBSchema.model_rebuild()
+    DetailedChatSchema.model_rebuild()
+
     yield
     logging.info("Shutdown application")

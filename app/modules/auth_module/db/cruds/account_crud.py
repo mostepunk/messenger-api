@@ -1,7 +1,10 @@
 # https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#sqlalchemy.ext.asyncio.AsyncAttrs.awaitable_attrs
 
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.modules.auth_module.db.models import AccountModel
 from app.modules.auth_module.schemas.account import AccountDBSchema, AccountSchema
@@ -23,7 +26,12 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
     async def find_by_email(
         self, email: str, raise_err: bool = True
     ) -> AccountDBSchema | None:
-        query = select(self._table).where(self._table.email == email)
+        query = (
+            select(self._table)
+            .where(self._table.email == email)
+            .options(joinedload(self._table.profile).joinedload("*"))
+        )
+
         res = await self.session.scalar(query)
         if not res:
             if raise_err:
@@ -31,3 +39,15 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
             return None
 
         return self._out_schema.model_validate(res)
+
+    async def get_by_id(self, item_uuid: UUID) -> AccountDBSchema:
+        """Получение записи по уникальному идентификатору"""
+        query = (
+            select(self._table)
+            .where(self._table.id == item_uuid)
+            .options(joinedload(self._table.profile).joinedload("*"))
+        )
+        item = await self.session.scalar(query)
+        if not item:
+            raise ItemNotFoundError(f"Item {item_uuid} not found")
+        return self._out_schema.model_validate(item)

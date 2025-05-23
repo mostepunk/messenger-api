@@ -45,14 +45,17 @@ def manual_create_database():
 
 
 def run_migrations():
+    clean_old_migration_files()
     alembic_path = find_file_in_upfolders(os.path.dirname(__file__), "alembic.ini")
     alembic_cfg = Config(alembic_path)
+    command.upgrade(alembic_cfg, "head")
+    command.revision(alembic_cfg, autogenerate=True, message="Initial migration")
     command.upgrade(alembic_cfg, "head")
     print("Migrations applied.")
 
 
 def clean_old_migration_files():
-    directory = "app/modules/database_module/db/migrations/versions"
+    directory = "app/adapters/db/migrations/versions"
     pattern = os.path.join(directory, "202*")
     files = glob.glob(pattern)
 

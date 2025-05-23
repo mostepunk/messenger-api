@@ -1,13 +1,11 @@
-# from .routes import router as routers
 from fastapi import APIRouter
 
-# add tags
-# router = APIRouter(
-#    tags=["chat_module"],
-#    prefix="/chat_module",
-# )
+from .routes import chats
 
-router = APIRouter()
+router = APIRouter(
+    tags=["chat"],
+    prefix="/chats",
+)
 
-# example including routers from api/routes
-# router.include_router(routers.router)
+
+router.include_router(chats.router)

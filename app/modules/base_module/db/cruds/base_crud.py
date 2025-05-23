@@ -84,11 +84,12 @@ class BaseCRUD(Generic[S_in, S_out, T]):
         results = await self.session.scalars(select(self._table))
         return validator.validate_python(results)
 
-    async def get_by_id(self, item_uuid: UUID) -> S_out:
+    async def get_by_id(self, item_uuid: UUID, return_raw: bool = False) -> S_out:
         """Получение записи по уникальному идентификатору
 
         Args:
             item_uuid: Уникальный идентификатор записи
+            return_raw: признак надо ли возвращать модель
 
         Returns:
             object: Схема объекта записи из БД
@@ -96,7 +97,19 @@ class BaseCRUD(Generic[S_in, S_out, T]):
         item = await self.session.get(self._table, item_uuid)
         if not item:
             raise ItemNotFoundError(f"Item {item_uuid} not found")
+        if return_raw:
+            return item
         return self._out_schema.model_validate(item)
+
+    async def get_by_ids(
+        self, ids: list[UUID], return_raw: bool = False
+    ) -> list[S_out]:
+        query = select(self._table).where(self._table.id.in_(ids))
+        items = (await self.session.scalars(query)).all()
+        if return_raw:
+            return items
+        validator = TypeAdapter(list[self._out_schema])
+        return validator.validate_python(items)
 
     async def find_catalogues_by_ids(self, catalogue: T, ids: list[UUID]) -> list[T]:
         query = select(catalogue).where(catalogue.id.in_(ids))

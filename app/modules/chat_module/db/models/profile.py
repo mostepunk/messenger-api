@@ -23,6 +23,7 @@ class ProfileModel(Base):
     chats: Mapped[list["ChatModel"] | None] = relationship(
         secondary="chat_user",
         lazy="selectin",
+        back_populates="members",
     )
 
 
