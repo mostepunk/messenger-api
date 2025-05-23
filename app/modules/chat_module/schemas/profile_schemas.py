@@ -28,3 +28,6 @@ class ProfilePDSchema(BaseSchema):
 class ProfileDBSchema(ProfileSchema, BaseDB):
     pd: ProfilePDSchema | None = Field(None, description="персональные данные")
     chats: list["ChatDBSchema"] | None = Field(None, description="список чатов")
+
+    def find_chat(self, chat_id: UUID) -> "ChatDBSchema | None":
+        return next((chat for chat in self.chats if chat.id == chat_id), None)

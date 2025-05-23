@@ -7,7 +7,6 @@ class PaginationParams(BaseSchema):
     limit: int | None = Field(
         default=None,
         ge=1,
-        le=101,
         examples=10,
         description="Maximum number of results on the page",
     )

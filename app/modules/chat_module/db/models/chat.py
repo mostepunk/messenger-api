@@ -39,6 +39,8 @@ class MessageModel(Base):
     read_at: Mapped[datetime | None]
     sent_at: Mapped[datetime | None]
 
+    sender: Mapped["ProfileModel | None"] = relationship()
+
 
 class ChatUsersModel(Base):
     __tablename__ = "chat_user"

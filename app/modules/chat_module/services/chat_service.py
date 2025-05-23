@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.auth_module.db.cruds.account_crud import AccountCRUD
 from app.modules.base_module.services.base_service import BaseService
 from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
+from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
 from app.modules.chat_module.db.cruds.profile_crud import ProfileCRUD
 from app.modules.chat_module.schemas.chat_schemas import CreateChatSchema
 
@@ -21,6 +22,7 @@ class ChatService(BaseService):
         self.chat_crud = ChatCRUD(session)
         self.account_crud = AccountCRUD(session)
         self.profile_crud = ProfileCRUD(session)
+        self.message_crud = MessageCRUD(session)
 
     async def accounts_chats(self, account_id: UUID):
         account_db: "AccountDBSchema" = await self.account_crud.get_by_id(account_id)
@@ -93,14 +95,27 @@ class ChatService(BaseService):
         logging.info(f"Found {chat}")
         return chat
 
+    async def chat_history(self, account_id: UUID, chat_id: UUID, pagination: dict):
+        account_db: "AccountDBSchema" = await self.account_crud.get_by_id(account_id)
+
+        chat = account_db.profile.find_chat(chat_id)
+        if chat is None:
+            raise ValueError("Chat not found")
+
+        total, messages = await self.message_crud.chat_history(
+            chat_id, **pagination.model_dump(exclude_unset=True)
+        )
+
+        logging.info(
+            f"Chat.ID {chat.id} total {total} messages. Return {len(messages)} messages"
+        )
+        return {"total_count": total, "entities": messages}
+
     def is_account_owner(self, account_db: "AccountDBSchema", chat_id: UUID) -> bool:
         profile_id = account_db.profile.id
         chat_ids = [
             chat.id for chat in account_db.profile.chats if chat.owner.id == profile_id
         ]
-
-        logging.info(f"{chat_ids=}")
-        logging.info(f"{chat_id=}")
 
         if chat_id not in chat_ids:
             logging.info("Chat not found")

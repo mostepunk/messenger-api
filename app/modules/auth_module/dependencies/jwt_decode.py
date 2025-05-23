@@ -77,7 +77,7 @@ async def decode_token_and_check_exp(token: str) -> Token:
     return decoded
 
 
-async def get_user_from_token(
+async def get_account_from_token(
     raw_token: Annotated[str, Depends(oauth2_scheme)]
 ) -> AccountSchema:
     """Получение пользователя из токена"""
@@ -88,7 +88,7 @@ async def get_user_from_token(
         logging.warning(f"Invalid token schema inside token dict: {err}")
         raise InvalidTokenError
     except Exception as err:
-        logging.warning(f"Exception in get_user_from_token: {err}")
+        logging.warning(f"Exception in get_account_from_token: {err}")
         raise BaseTokenException
 
     else:

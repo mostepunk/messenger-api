@@ -85,6 +85,7 @@ known_local_folder = ["app"]
 "validator" = "from pydantic import validator"
 "root_validator" = "from pydantic import root_validator"
 "parse_obj_as" = "from pydantic import parse_obj_as"
+"TypeAdapter" = "from pydantic import TypeAdapter"
 # 
 "APIRouter" = "from fastapi import APIRouter"
 "Depends"= "from fastapi import Depends"
@@ -119,6 +120,7 @@ known_local_folder = ["app"]
 "StrEnum" = "from app.modules.base_module.schemas.base import StrEnum"
 "ErrorCode" = "from app.utils.errors_map import ErrorCode"
 "PaginationParams" = "from app.modules.base_module.schemas.pagination import PaginationParams"
-"get_user_from_token" = "from app.modules.auth_module.dependencies.jwt_decode import get_user_from_token"
+"get_account_from_token" = "from app.modules.auth_module.dependencies.jwt_decode import get_account_from_token"
 "ApiMode" = "from app.settings.base import ApiMode"
 "config" = "from app.settings import config"
+

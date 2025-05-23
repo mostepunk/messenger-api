@@ -3,7 +3,7 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies.services_dependency import get_service
-from app.modules.auth_module.dependencies.jwt_decode import get_user_from_token
+from app.modules.auth_module.dependencies.jwt_decode import get_account_from_token
 from app.modules.catalogues_module.db.catalogue_registry import catalogue_registry
 from app.modules.catalogues_module.schemas.catalogues import CatalogueSchema
 from app.modules.catalogues_module.services import CatalogueService
@@ -13,7 +13,7 @@ router = APIRouter()
 
 def generate_catalogue_endpoint(name: str) -> Callable:
     async def endpoint(
-        account: Annotated[get_user_from_token, Depends()],
+        account: Annotated[get_account_from_token, Depends()],
         service: CatalogueService = Depends(get_service(CatalogueService)),
     ):
         try:

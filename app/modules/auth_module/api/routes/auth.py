@@ -12,7 +12,7 @@ from fastapi import (
 from app.dependencies.services_dependency import get_service
 from app.modules.auth_module.dependencies.jwt_decode import (
     check_refresh_token,
-    get_user_from_token,
+    get_account_from_token,
 )
 from app.modules.auth_module.schemas.account import (
     AccountConfirmEmailSchema,
@@ -131,7 +131,7 @@ async def logout(
     summary="Информация об авторизованном пользователе",
     response_model=AccountSchema,
 )
-async def about_me(account: Annotated[get_user_from_token, Depends()]):
+async def about_me(account: Annotated[get_account_from_token, Depends()]):
     return account
 
 
@@ -244,7 +244,7 @@ async def reset_password(
 )
 async def update_password(
     password: NewPasswordsSchema,
-    account: Annotated[get_user_from_token, Depends()],
+    account: Annotated[get_account_from_token, Depends()],
     service: Annotated[get_service(AuthService), Depends()],
 ):
     await service.update_password(account.id, password.password)
