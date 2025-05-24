@@ -95,9 +95,28 @@ async def get_account_from_token(
         if token_expired(token.exp):
             raise TokenExpiredError
 
-        if token.token_type == TokenTypeEnum.refresh_type:
+        if token.token_type != TokenTypeEnum.access_type:
             raise InvalidTokenTypeError
         return account
+
+
+async def authenticate_websocket_user(raw_token: str) -> AccountSchema | None:
+    """Аутентификация пользователя по токену для WebSocket"""
+    try:
+        token: Token = await decode_token(raw_token)
+        account = AccountSchema(id=token.user_id, email=token.email)
+    except Exception as err:
+        logging.warning(f"WebSocket authentication failed: {err}")
+        return None
+
+    if token_expired(token.exp):
+        logging.warning(f"Token expired: {token.exp}")
+        return None
+    if token.token_type != TokenTypeEnum.access_type:
+        logging.warning(f"Invalid token type: {token.token_type}")
+        return None
+
+    return account
 
 
 async def check_refresh_token(raw_token: str):
