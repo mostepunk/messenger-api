@@ -2,52 +2,75 @@ import json
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth_module.db.cruds.account_crud import AccountCRUD
 from app.modules.auth_module.dependencies.jwt_decode import authenticate_websocket_user
+from app.modules.base_module.db.errors import ItemNotFoundError
 from app.modules.base_module.services.base_service import BaseService
-from app.modules.chat_module.websoket.connection_manager import connetion_manager
+from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
+from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
+from app.modules.chat_module.websoket.connection_manager import connection_manager
 
 if TYPE_CHECKING:
-    from app.modules.auth_module.schemas.account import AccountDBSchema
+    from app.modules.auth_module.schemas.account import AccountDBSchema, ChatDBSchema
+    from app.modules.chat_module.schemas.message_schema import MessageDBSchema
 
 
 class WebsocketService(BaseService):
     def __init__(self, session: AsyncSession):
         super().__init__(session)
-        self.manager = connetion_manager
+        self.manager = connection_manager
         self.account_crud = AccountCRUD(session)
+        self.message_crud = MessageCRUD(session)
+        self.chat_crud = ChatCRUD(session)
 
     async def handle_incoming_connection(self, websocket: WebSocket, chat_id: UUID):
         await websocket.accept()
-        auth_message = await websocket.receive_text()
-        account_schema = await self.authorize_account(auth_message)
-        if not account_schema:
-            await websocket.send_text(
-                json.dumps({"type": "auth_error", "message": "Authentication failed"})
-            )
-            await websocket.close(code=1008, reason="Authentication failed")
-            return
-
-        profile_id = account_schema.profile.id
-        await self.manager.connect(websocket, profile_id)
 
         try:
+            auth_message = await websocket.receive_text()
+            account_schema = await self.authorize_account(auth_message)
+
+            if not account_schema:
+                await self.manager.close_as_unauthorized(websocket)
+                return
+
+            profile_id = account_schema.profile.id
+            await self.manager.connect(websocket, profile_id)
+            await self.manager.user_authorized(websocket, profile_id, chat_id)
+
+            is_joined = await self.auto_join_chat(chat_id, profile_id, websocket)
+            if not is_joined:
+                self.manager.disconnect(websocket, profile_id)
+                return
+            await self.send_chat_history(chat_id, profile_id, websocket)
+
             while True:
-                data = await websocket.receive_text()
-                message_data = json.loads(data)
-                logging.info(f"Received message: {message_data}")
-                await self.handle_websocket_message(message_data, profile_id, websocket)
+                message_data = await self.manager.receive_message_from_socket(websocket)
+                logging.debug(
+                    f"Profile.ID {profile_id} Received message: {message_data}"
+                )
+                await self.handle_websocket_message(
+                    message_data, profile_id, websocket, chat_id
+                )
 
         except WebSocketDisconnect:
-            self.manager.disconnect(websocket, profile_id)
+            logging.info(
+                f"WebSocket disconnected for Profile.ID {profile_id if 'profile_id' in locals() else 'unknown'}"
+            )
+            if "profile_id" in locals() and "chat_id" in locals():
+                await self.handle_disconnect(profile_id, chat_id)
+                self.manager.disconnect(websocket, profile_id)
 
-    async def authorize_account(self, auth_message: str) -> "AccountDBSchema | bool":
-        authenticated_user = None
+        except Exception as e:
+            logging.error(f"WebSocket connection error: {e}")
+            await self.manager.close_as_internal_error(websocket)
+
+    async def authorize_account(self, auth_message: str) -> "AccountDBSchema | None":
         try:
             auth_data = json.loads(auth_message)
             if auth_data.get("type") == "auth":
@@ -62,193 +85,322 @@ class WebsocketService(BaseService):
 
         except json.JSONDecodeError:
             logging.warning(f"Invalid auth message: {auth_message}")
+        except Exception as e:
+            logging.error(f"Authorization error: {e}")
+
+        return None
+
+    async def auto_join_chat(
+        self, chat_id: UUID, profile_id: UUID, websocket: WebSocket
+    ) -> bool:
+        """Автоматическое присоединение к чату после аутентификации"""
+        try:
+            db_chat: "ChatDBSchema" = await self.chat_crud.get_by_id(chat_id)
+            members_ids: list[UUID] = [member.id for member in db_chat.members]
+
+            if profile_id not in members_ids:
+                await self.manager.close_as_not_a_member(websocket)
+                return False
+
+            await self.manager.join_chat(profile_id, chat_id)
+            # не посылать уведомление, что пользователь вошел в чат, если он зашел с другого устройства
+            if self.manager.profile_has_multiple_devices_in_chat(chat_id, profile_id):
+                logging.info(
+                    f"Profile.ID {profile_id} connected from additional device to chat {chat_id}"
+                )
+                return True
+
+            await self.manager.send_chat_message(
+                {
+                    "type": "user_joined",
+                    "chat_id": str(chat_id),
+                    "user_id": str(profile_id),
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                chat_id,
+                exclude_user=profile_id,
+            )
+            return True
+
+        except ItemNotFoundError:
+            logging.warning(f"Chat.ID {chat_id} Not Found")
+            await self.manager.close_chat_not_found(websocket)
             return False
 
-        return False
+    async def send_chat_history(
+        self, chat_id: UUID, profile_id: UUID, websocket: WebSocket, limit: int = 10
+    ):
+        """Отправка истории сообщений"""
+        try:
+            # total_count: int, messages: list[MessageDBSchema]
+            total_count, messages = await self.message_crud.chat_history(
+                chat_id, limit=limit, offset=0
+            )
+            message = {
+                "type": "chat_history",
+                "messages": [message.model_dump(mode="json") for message in messages],
+                "total_count": total_count,
+                "unread_count": 0,
+            }
+            await self.manager.send_message_to_socket(websocket, message)
+            logging.debug(f"Sent chat history for user {profile_id}")
+
+        except Exception as err:
+            logging.error(f"Error sending chat history: {err}")
+            message = {"type": "error", "message": "Failed to load chat history"}
+            await self.manager.send_message_to_socket(websocket, message)
 
     async def handle_websocket_message(
         self,
         message_data: dict,
         user_id: UUID,
         websocket: WebSocket,
+        chat_id: UUID,
     ):
-        """
-        Обработчик входящих WebSocket сообщений
-
-        Args:
-            message_data: Данные сообщения
-            user_id: ID пользователя
-            websocket: WebSocket соединение
-        """
+        """Обработчик входящих WebSocket сообщений"""
         try:
             message_type = message_data.get("type")
 
-            if message_type == "join_chat":
-                await self.handle_join_chat(message_data, user_id, websocket)
+            if message_type == "send_message":
+                await self.handle_send_message(message_data, user_id, chat_id)
 
             elif message_type == "leave_chat":
-                await self.handle_leave_chat(message_data, user_id, websocket)
-
-            elif message_type == "send_message":
-                await self.handle_send_message(message_data, user_id)
+                await self.handle_leave_chat(message_data, user_id, chat_id)
 
             elif message_type == "mark_read":
-                await self.handle_mark_read(message_data, user_id)
+                await self.handle_mark_read(message_data, user_id, chat_id)
+
+            elif message_type == "mark_single_read":
+                await self.handle_mark_single_read(message_data, user_id)
 
             elif message_type == "typing":
-                await self.handle_typing(message_data, user_id)
+                await self.handle_typing(message_data, user_id, chat_id)
+
+            elif message_type == "get_chat_history":
+                await self.handle_get_chat_history(
+                    message_data, user_id, websocket, chat_id
+                )
+
+            elif message_type == "get_unread_count":
+                await self.handle_get_unread_count(user_id, websocket, chat_id)
 
             else:
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "type": "error",
-                            "message": f"Unknown message type: {message_type}",
-                        }
-                    )
+                await self.manager.send_message_to_socket(
+                    websocket,
+                    {
+                        "type": "error",
+                        "message": f"Unknown message type: {message_type}",
+                    },
                 )
 
         except Exception as e:
             logging.error(f"Error handling websocket message: {e}")
-            await websocket.send_text(
-                json.dumps(
-                    {"type": "error", "message": f"Failed to process message: {e}"}
-                )
+            await self.manager.send_message_to_socket(
+                websocket,
+                {"type": "error", "message": f"Failed to process message: {str(e)}"},
             )
 
-    async def handle_join_chat(
-        self,
-        message_data: dict,
-        user_id: UUID,
-        websocket: WebSocket,
+    async def handle_leave_chat(
+        self, message_data: dict, profile_id: UUID, chat_id: UUID
     ):
-        """Обработка присоединения к чату"""
-        chat_id = UUID(message_data.get("chat_id"))
+        """Обработка покидания чата"""
         try:
-            # FIXME: Добавить возможность получить информацию о чате
+            await self.manager.leave_chat(profile_id, chat_id)
+            if not self.manager.profile_is_in_chat(chat_id, profile_id):
+                await self.manager.send_chat_message(
+                    {
+                        "type": "user_left",
+                        "chat_id": str(chat_id),
+                        "user_id": str(profile_id),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                    chat_id,
+                    exclude_user=profile_id,
+                )
+                logging.info(f"User {profile_id} completely left chat {chat_id}")
+            else:
+                logging.info(
+                    f"User {profile_id} disconnected one device from chat {chat_id}"
+                )
 
-            await self.manager.join_chat(user_id, chat_id)
+        except Exception as err:
+            logging.error(f"Error Profile.ID {profile_id} leave chat: {err}")
+
+    async def handle_disconnect(self, user_id: UUID, chat_id: UUID):
+        """Обработка отключения пользователя (вызывается при WebSocketDisconnect)"""
+        try:
             await self.manager.send_chat_message(
                 {
-                    "type": "user_joined",
+                    "type": "user_disconnected",
                     "chat_id": str(chat_id),
                     "user_id": str(user_id),
-                    "timestamp": str(datetime.utcnow()),
+                    "timestamp": datetime.utcnow().isoformat(),
                 },
                 chat_id,
                 exclude_user=user_id,
             )
 
-            await websocket.send_text(
-                json.dumps(
-                    {
-                        "type": "joined_chat",
-                        "chat_id": str(chat_id),
-                    }
-                )
-            )
+            logging.info(f"User {user_id} disconnected from chat {chat_id}")
 
-        except ValueError:
-            await websocket.send_text(
-                json.dumps(
-                    {"type": "error", "message": "You are not a member of this chat"}
-                )
-            )
-
-    async def handle_leave_chat(
-        self, message_data: dict, user_id: UUID, websocket: WebSocket
-    ):
-        """Обработка покидания чата"""
-        chat_id = UUID(message_data.get("chat_id"))
-
-        await self.manager.leave_chat(user_id, chat_id)
-        await self.manager.send_chat_message(
-            {
-                "type": "user_left",
-                "chat_id": str(chat_id),
-                "user_id": str(user_id),
-                "timestamp": str(datetime.utcnow()),
-            },
-            chat_id,
-            exclude_user=user_id,
-        )
+        except Exception as e:
+            logging.error(f"Error handling disconnect: {e}")
 
     async def handle_send_message(
-        self,
-        message_data: dict,
-        user_id: UUID,
+        self, message_data: dict, user_id: UUID, chat_id: UUID
     ):
         """Обработка отправки сообщения"""
-        # TODO: Сделать сохранение сообщений в БД
-        chat_id = UUID(message_data.get("chat_id"))
         text = message_data.get("text")
+        if not text or not text.strip():
+            return
+        try:
+            message: "MessageDBSchema" = await self.message_crud.add(
+                {
+                    "chat_id": chat_id,
+                    "sender_id": user_id,
+                    "text": text.strip(),
+                    "sent_at": datetime.utcnow(),
+                }
+            )
+            await self.session.commit()
+            await self.manager.broadcast_to_chat(
+                {"type": "new_message", "message": message.model_dump(mode="json")},
+                chat_id,
+            )
 
-        # Сохраняем сообщение в БД
-        # message = await message_service.create_message(
-        #     {"chat_id": chat_id, "sender_id": user_id, "text": text}
-        # )
-        # await session.commit()
-
-        # Отправляем всем участникам чата
-        await self.manager.broadcast_to_chat(
-            {
-                "type": "new_message",
-                "message": {
-                    # "id": str(message.id),
-                    # "chat_id": str(message.chat_id),
-                    # "sender_id": str(message.sender_id),
-                    # "text": message.text,
-                    # "sent_at": message.sent_at.isoformat() if message.sent_at else None,
-                    # "read_at": message.read_at.isoformat() if message.read_at else None,
-                    "id": str(uuid4()),
-                    "chat_id": str(chat_id),
-                    "sender_id": str(user_id),
-                    "text": text,
-                    "sent_at": str(datetime.utcnow()),
-                    "read_at": None,
-                },
-            },
-            chat_id,
-        )
+        except Exception as e:
+            logging.error(f"Error sending message: {e}")
+            await self.manager.send_personal_message(
+                {"type": "error", "message": "Failed to send message"}, user_id
+            )
 
     async def handle_mark_read(
-        self,
-        message_data: dict,
-        user_id: UUID,
-        session: AsyncSession,
+        self, message_data: dict, profile_id: UUID, chat_id: UUID
     ):
-        """Обработка отметки о прочтении"""
-        message_id = UUID(message_data.get("message_id"))
+        """Обработка отметки сообщений как прочитанных до определенного ID"""
+        last_read_message_id = message_data.get("last_read_message_id")
+        if not last_read_message_id:
+            return
 
-        # Отмечаем сообщение как прочитанное
-        await message_service.mark_message_read(message_id, user_id)
-        await session.commit()
+        try:
+            newly_read_message_ids = (
+                await self.message_crud.mark_messages_read_by_last_id(
+                    chat_id, profile_id, last_read_message_id
+                )
+            )
+            await self.session.commit()
 
-        # Уведомляем отправителя
-        message_info = await message_service.get_message(message_id)
-        await self.manager.send_personal_message(
-            {
-                "type": "message_read",
-                "message_id": str(message_id),
-                "read_by": str(user_id),
-                "timestamp": str(datetime.utcnow()),
-            },
-            message_info.sender_id,
-        )
+            if newly_read_message_ids:
+                # Получаем детальную информацию о прочитанных сообщениях для уведомления
+                read_messages_info = await self.message_crud.get_messages_by_ids(
+                    newly_read_message_ids
+                )
+                await self.manager.broadcast_to_chat(
+                    {
+                        "type": "messages_read",
+                        "chat_id": str(chat_id),
+                        "read_by": str(profile_id),
+                        "message_ids": [
+                            str(msg_id) for msg_id in newly_read_message_ids
+                        ],
+                        "read_count": len(newly_read_message_ids),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                    chat_id,
+                )
+                # Уведомляем отправителей прочитанных сообщений персонально
+                senders = set()
+                for msg_info in read_messages_info:
+                    if msg_info.sender_id and msg_info.sender_id != profile_id:
+                        senders.add(msg_info.sender_id)
 
-    async def handle_typing(self, message_data: dict, user_id: UUID):
+                for sender_id in senders:
+                    await self.manager.send_personal_message(
+                        {
+                            "type": "your_messages_read",
+                            "chat_id": str(chat_id),
+                            "read_by": str(profile_id),
+                            "read_count": len(newly_read_message_ids),
+                            "timestamp": datetime.utcnow().isoformat(),
+                        },
+                        sender_id,
+                    )
+
+        except Exception as e:
+            logging.error(f"Error marking messages as read: {e}")
+
+    async def handle_mark_single_read(self, message_data: dict, profile_id: UUID):
+        """Обработка отметки одного сообщения как прочитанного"""
+        message_id = message_data.get("message_id")
+
+        if not message_id:
+            return
+
+        try:
+            message_uuid = UUID(message_id)
+            was_marked = await self.message_crud.mark_as_read_by_profile(
+                message_uuid, profile_id
+            )
+            message_db = await self.message_crud.get_by_id(message_uuid)
+
+            await self.manager.send_personal_message(
+                {
+                    "type": "message_read",
+                    "message_id": str(message_uuid),
+                    "read_by": str(profile_id),
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                message_db.sender.id,
+            )
+
+        except Exception as e:
+            logging.error(f"Error marking single message as read: {e}")
+
+    async def handle_typing(self, message_data: dict, user_id: UUID, chat_id: UUID):
         """Обработка индикатора печати"""
-        chat_id = UUID(message_data.get("chat_id"))
         is_typing = message_data.get("is_typing", False)
 
-        # Уведомляем других участников о печати
-        await self.manager.send_chat_message(
-            {
-                "type": "typing",
-                "chat_id": str(chat_id),
-                "user_id": str(user_id),
-                "is_typing": is_typing,
-            },
-            chat_id,
-            exclude_user=user_id,
-        )
+        try:
+            await self.manager.send_chat_message(
+                {
+                    "type": "typing",
+                    "chat_id": str(chat_id),
+                    "user_id": str(user_id),
+                    "is_typing": is_typing,
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                chat_id,
+                exclude_user=user_id,
+            )
+        except Exception as e:
+            logging.error(f"Error handling typing indicator: {e}")
+
+    async def handle_get_chat_history(
+        self, message_data: dict, user_id: UUID, websocket: WebSocket, chat_id: UUID
+    ):
+        """Обработка запроса истории чата"""
+        limit = message_data.get("limit", 10)
+        offset = message_data.get("offset", 0)
+
+        await self.send_chat_history(chat_id, user_id, websocket, limit)
+
+    async def handle_get_unread_count(
+        self, profile_id: UUID, websocket: WebSocket, chat_id: UUID
+    ):
+        """Обработка запроса количества непрочитанных сообщений"""
+        try:
+            unread_count = await self.message_crud.get_unread_count_for_user(
+                chat_id, profile_id
+            )
+            await self.manager.send_message_to_socket(
+                {
+                    "type": "unread_count",
+                    "chat_id": str(chat_id),
+                    "count": unread_count,
+                }
+            )
+        except Exception as e:
+            logging.error(f"Error getting unread count: {e}")
+            await self.manager.send_message_to_socket(
+                websocket,
+                {"type": "error", "message": "Failed to get unread count"},
+            )

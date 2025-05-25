@@ -36,7 +36,8 @@ class ChatService(BaseService):
         account_db: "AccountDBSchema" = await self.account_crud.get_by_id(account_id)
 
         members = values.pop("members", [])
-        members.append(account_db.profile.id)
+        if account_db.profile.id not in members:
+            members.append(account_db.profile.id)
 
         values["owner_id"] = account_db.profile.id
 
@@ -46,6 +47,7 @@ class ChatService(BaseService):
         )
 
         if len(profiles) != len(members):
+            # FIXME: Переделать на 400: user not found
             raise ValueError("Members not found")
 
         await self.chat_crud.add_members(chat.id, profiles)

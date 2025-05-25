@@ -22,6 +22,7 @@ async def startup_application(app: FastAPI):
 
     AccountDBSchema.model_rebuild()
     ChatSchema.model_rebuild()
+    ChatDBSchema.model_rebuild()
     ProfileDBSchema.model_rebuild()
     DetailedChatSchema.model_rebuild()
     MessageSchema.model_rebuild()

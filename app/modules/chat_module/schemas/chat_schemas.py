@@ -26,7 +26,8 @@ class DetailedChatSchema(ChatSchema):
 
 
 class ChatDBSchema(ChatSchema, BaseDB):
-    pass
+    members: "list[ProfileSchema] | None" = Field(description="Участники чата")
+    owner: "ProfileSchema" = Field(description="Владелец чата")
 
 
 class CreateChatSchema(BaseSchema):

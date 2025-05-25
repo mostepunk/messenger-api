@@ -5,7 +5,7 @@ from uuid import UUID
 from psycopg.errors import UniqueViolation
 from pydantic import TypeAdapter
 from sqlalchemy import delete, func, insert, inspect, select, update
-from sqlalchemy.engine.result import ChunkedIteratorResult
+from sqlalchemy.engine.result import ScalarResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -200,7 +200,7 @@ class BaseCRUD(Generic[S_in, S_out, T]):
         query: select,
         limit: int,
         offset: int,
-    ) -> tuple[int, ChunkedIteratorResult]:
+    ) -> tuple[int, ScalarResult]:
         """Помимо выполнения запроса к БД вертает общее кол-во.
 
         и передает параметры пагинации, если это необходимо.

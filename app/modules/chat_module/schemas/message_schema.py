@@ -16,9 +16,11 @@ class MessageSchema(BaseSchema):
     sender: "ProfileSchema"
     read_at: datetime | None
     sent_at: datetime
+    chat_id: UUID
 
 
 class MessageDBSchema(MessageSchema, BaseDB):
+    sender_id: UUID
     pass
 
 
