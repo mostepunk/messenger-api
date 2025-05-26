@@ -9,6 +9,12 @@ from app.modules.base_module.services.base_service import BaseService
 from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
 from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
 from app.modules.chat_module.db.cruds.profile_crud import ProfileCRUD
+from app.modules.chat_module.errors import (
+    AccessDenied,
+    ChatNotFound,
+    MembersNotFound,
+    ProhibitedToModifyChat,
+)
 from app.modules.chat_module.schemas.chat_schemas import CreateChatSchema
 
 if TYPE_CHECKING:
@@ -47,8 +53,8 @@ class ChatService(BaseService):
         )
 
         if len(profiles) != len(members):
-            # FIXME: Переделать на 400: user not found
-            raise ValueError("Members not found")
+            not_found = list(set(members) - set([p.id for p in profiles]))
+            raise MembersNotFound(f"{len(not_found)} members not found: {not_found}")
 
         await self.chat_crud.add_members(chat.id, profiles)
         await self.session.commit()
@@ -59,7 +65,7 @@ class ChatService(BaseService):
         account_db: "AccountDBSchema" = await self.account_crud.get_by_id(account_id)
 
         if not self.is_account_owner(account_db, chat_id):
-            raise ValueError("Chat not found")
+            raise ProhibitedToModifyChat()
 
         await self.chat_crud.delete(chat_id)
         await self.session.commit()
@@ -71,7 +77,7 @@ class ChatService(BaseService):
         account_db: "AccountDBSchema" = await self.account_crud.get_by_id(account_id)
 
         if not self.is_account_owner(account_db, chat_id):
-            raise ValueError("Chat not found")
+            raise ProhibitedToModifyChat()
 
         values = chat_data.model_dump(exclude_unset=True)
         members = values.pop("members", [])
@@ -83,7 +89,8 @@ class ChatService(BaseService):
         )
 
         if len(profiles) != len(members):
-            raise ValueError("Members not found")
+            not_found = list(set(members) - set([p.id for p in profiles]))
+            raise MembersNotFound(f"{len(not_found)} members not found: {not_found}")
 
         await self.chat_crud.add_members(chat.id, profiles)
         await self.session.commit()
@@ -102,7 +109,10 @@ class ChatService(BaseService):
 
         chat = account_db.profile.find_chat(chat_id)
         if chat is None:
-            raise ValueError("Chat not found")
+            raise ChatNotFound()
+
+        if chat_id not in account_db.profile.chat_ids:
+            raise AccessDenied()
 
         total, messages = await self.message_crud.chat_history(
             chat_id, **pagination.model_dump(exclude_unset=True)
@@ -115,11 +125,10 @@ class ChatService(BaseService):
 
     def is_account_owner(self, account_db: "AccountDBSchema", chat_id: UUID) -> bool:
         profile_id = account_db.profile.id
-        chat_ids = [
+        profile_owned_chats = [
             chat.id for chat in account_db.profile.chats if chat.owner.id == profile_id
         ]
 
-        if chat_id not in chat_ids:
-            logging.info("Chat not found")
-            return False
-        return True
+        if chat_id in profile_owned_chats:
+            return True
+        return False

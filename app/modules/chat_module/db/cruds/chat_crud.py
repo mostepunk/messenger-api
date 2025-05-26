@@ -33,7 +33,7 @@ class ChatCRUD(BaseCRUD[ChatSchema, ChatDBSchema, ChatModel]):
         )
         item = await self.session.scalar(query)
         if not item:
-            raise ItemNotFoundError(f"Item {chat_id} not found")
+            raise ItemNotFoundError(f"Chat {chat_id} not found")
         if return_raw:
             return item
         return self._out_schema.model_validate(item)

@@ -35,7 +35,7 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
         res = await self.session.scalar(query)
         if not res:
             if raise_err:
-                raise ItemNotFoundError(f"Account by {email} not found")
+                raise ItemNotFoundError(f"Account with email {email} not found")
             return None
 
         return self._out_schema.model_validate(res)

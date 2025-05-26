@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.modules.base_module.schemas.base import BaseDB, BaseSchema
 
@@ -31,11 +31,23 @@ class ChatDBSchema(ChatSchema, BaseDB):
 
 
 class CreateChatSchema(BaseSchema):
-    name: str = Field(description="название чата", example="chat name")
+    name: str = Field(
+        description="название чата",
+        example="chat name",
+        min_length=1,
+        max_length=100,
+    )
     description: str | None = Field(
-        None, description="описание чата", example="chat description"
+        None, description="описание чата", example="chat description", max_length=250
     )
     members: list[UUID] | None = Field(None, description="список участников")
+
+    @field_validator("members")
+    @classmethod
+    def validate_members(cls, v):
+        if v and len(v) != len(set(v)):
+            raise ValueError("Список участников содержит дубликаты")
+        return v
 
 
 class UpdateChatSchema(CreateChatSchema):

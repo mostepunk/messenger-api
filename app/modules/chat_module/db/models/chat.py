@@ -30,21 +30,25 @@ class ChatModel(Base):
 class ChatUsersModel(Base):
     __tablename__ = "chat_user"
 
-    chat_id: Mapped[UUID] = mapped_column(FK("chat.id", ondelete="CASCADE"))
-    profile_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
+    chat_id: Mapped[UUID] = mapped_column(FK("chat.id", ondelete="CASCADE"), index=True)
+    profile_id: Mapped[UUID] = mapped_column(
+        FK("profile.id", ondelete="CASCADE"), index=True
+    )
 
 
 class MessageModel(Base):
     __tablename__ = "message"
 
-    chat_id: Mapped[UUID | None] = mapped_column(FK("chat.id", ondelete="CASCADE"))
+    chat_id: Mapped[UUID | None] = mapped_column(
+        FK("chat.id", ondelete="CASCADE"), index=True
+    )
     text: Mapped[str]
     sender_id: Mapped[UUID | None] = mapped_column(
-        FK("profile.id", ondelete="SET NULL")
+        FK("profile.id", ondelete="SET NULL"), index=True
     )
     # подойдет, только для чатов 1to1
     read_at: Mapped[datetime | None]
-    sent_at: Mapped[datetime | None]
+    sent_at: Mapped[datetime | None] = mapped_column(index=True)
 
     sender: Mapped["ProfileModel | None"] = relationship()
     read_statuses: Mapped[list["MessageReadStatusModel"]] = relationship(
@@ -77,8 +81,12 @@ class MessageModel(Base):
 class MessageReadStatusModel(Base):
     __tablename__ = "message_read_status"
 
-    message_id: Mapped[UUID] = mapped_column(FK("message.id", ondelete="CASCADE"))
-    profile_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
+    message_id: Mapped[UUID] = mapped_column(
+        FK("message.id", ondelete="CASCADE"), index=True
+    )
+    profile_id: Mapped[UUID] = mapped_column(
+        FK("profile.id", ondelete="CASCADE"), index=True
+    )
     read_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     __table_args__ = (

@@ -10,7 +10,13 @@ def log_info(req_body: bytes, res_body: bytes, *args, **kwargs):
     log_item = {"Request": {}, "Response": {}}
 
     log_item["Request"]["headers"] = kwargs["kwargs"].get("req_headers")
-    log_item["Response"]["headers"] = kwargs["kwargs"].get("resp_headers")
+    req_headers = kwargs["kwargs"].get("req_headers", {})
+    safe_headers = {
+        k: v
+        for k, v in req_headers.items()
+        if k.lower() not in ["authorization", "cookie", "x-api-key"]
+    }
+    log_item["Request"]["headers"] = safe_headers
     log_item["Response"]["status_code"] = kwargs["kwargs"].get("status_code")
 
     try:

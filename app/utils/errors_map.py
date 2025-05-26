@@ -23,7 +23,8 @@ class ErrorCode(str, Enum):
     unexpected_validation_error: str = "UNEXPECTED_VALIDATION_ERROR"
 
     external_client_error: str = "EXTERNAL_CLIENT_ERROR"
-    # /clients errors
-    empty_field: str = "EMPTY_FIELD"
-    value_error: str = "VALUE_ERROR"
-    item_not_found: str = "ITEM_NOT_FOUND"
+
+    # chat errors
+    prohibited_to_delete: str = "PROHIBITED_TO_DELETE"
+    member_not_found: str = "MEMBER_NOT_FOUND"
+    chat_error: str = "CHAT_ERROR"

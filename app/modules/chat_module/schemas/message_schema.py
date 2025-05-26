@@ -12,7 +12,9 @@ if TYPE_CHECKING:
 
 class MessageSchema(BaseSchema):
     id: UUID
-    text: str = Field(description="текст сообщения", example="hello")
+    text: str = Field(
+        description="текст сообщения", example="hello", min_length=1, max_length=4000
+    )
     sender: "ProfileSchema"
     read_at: datetime | None
     sent_at: datetime

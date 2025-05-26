@@ -15,6 +15,8 @@ from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
 from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
 from app.modules.chat_module.services.deduplication_service import deduplication_service
 from app.modules.chat_module.websoket.connection_manager import connection_manager
+from app.settings import config
+from app.settings.base import ApiMode
 
 if TYPE_CHECKING:
     from app.modules.auth_module.schemas.account import AccountDBSchema, ChatDBSchema
@@ -32,6 +34,7 @@ class WebsocketService(BaseService):
 
     async def handle_incoming_connection(self, websocket: WebSocket, chat_id: UUID):
         await websocket.accept()
+        profile_id = None
 
         try:
             auth_message = await websocket.receive_text()
@@ -53,9 +56,14 @@ class WebsocketService(BaseService):
 
             while True:
                 message_data = await self.manager.receive_message_from_socket(websocket)
-                logging.debug(
-                    f"Profile.ID {profile_id} Received message: {message_data}"
-                )
+                if config.environment in (ApiMode.dev, ApiMode.local):
+                    logging.debug(
+                        f"Profile.ID {profile_id} Received message: {message_data}"
+                    )
+                else:
+                    logging.debug(
+                        f"Profile.ID {profile_id} Received message type: {message_data.get('type', 'unknown')}"
+                    )
                 await self.handle_websocket_message(
                     message_data, profile_id, websocket, chat_id
                 )
@@ -86,7 +94,7 @@ class WebsocketService(BaseService):
                     return account_db
 
         except json.JSONDecodeError:
-            logging.warning(f"Invalid auth message: {auth_message}")
+            logging.warning("Invalid auth message format")
         except Exception as e:
             logging.error(f"Authorization error: {e}")
 

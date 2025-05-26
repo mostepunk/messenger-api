@@ -11,10 +11,10 @@ if TYPE_CHECKING:
 
 
 class BaseProfileSchema(BaseSchema):
-    first_name: str = Field(example="Иван")
-    last_name: str = Field(example="Иванов")
-    middle_name: str = Field(example="Иванович")
-    username: str = Field(example="povelitel_kisok777")
+    first_name: str = Field(example="Иван", min_length=1, max_length=100)
+    last_name: str = Field(example="Иванов", min_length=1, max_length=100)
+    middle_name: str = Field(example="Иванович", max_length=100)
+    username: str = Field(example="povelitel_kisok777", min_length=3, max_length=50)
 
 
 class ProfileSchema(BaseProfileSchema):
@@ -31,3 +31,6 @@ class ProfileDBSchema(ProfileSchema, BaseDB):
 
     def find_chat(self, chat_id: UUID) -> "ChatDBSchema | None":
         return next((chat for chat in self.chats if chat.id == chat_id), None)
+
+    def chat_ids(self) -> list[UUID]:
+        return [chat.id for chat in self.chats]

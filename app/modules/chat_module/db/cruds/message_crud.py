@@ -9,7 +9,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload
 
 from app.modules.base_module.db.cruds.base_crud import BaseCRUD
-from app.modules.chat_module.db.models.chat import MessageModel, MessageReadStatusModel
+from app.modules.chat_module.db.models.chat import (
+    ChatUsersModel,
+    MessageModel,
+    MessageReadStatusModel,
+)
 from app.modules.chat_module.schemas.message_schema import (
     MessageDBSchema,
     MessageSchema,
@@ -85,6 +89,23 @@ class MessageCRUD(BaseCRUD[MessageSchema, MessageDBSchema, MessageModel]):
         Returns:
             list[UUID]: Список ID сообщений, которые были отмечены как прочитанные
         """
+        membership_check = select(ChatUsersModel).where(
+            ChatUsersModel.chat_id == chat_id,
+            ChatUsersModel.profile_id == profile_id,
+        )
+        membership = await self.session.scalar(membership_check)
+        if not membership:
+            logging.warning(f"User {profile_id} is not member of chat {chat_id}")
+            return []
+        message_check = select(self._table.id).where(
+            self._table.id == last_read_message_id, self._table.chat_id == chat_id
+        )
+        if not await self.session.scalar(message_check):
+            logging.warning(
+                f"Message {last_read_message_id} not found in chat {chat_id}"
+            )
+            return []
+
         last_message_time_subquery = (
             select(self._table.sent_at)
             .where(self._table.id == last_read_message_id)
@@ -177,68 +198,3 @@ class MessageCRUD(BaseCRUD[MessageSchema, MessageDBSchema, MessageModel]):
 
         result = await self.session.scalar(unread_query)
         return result or 0
-
-    async def get_last_read_message_for_user(
-        self, chat_id: UUID, profile_id: UUID
-    ) -> UUID | None:
-        """Получить ID последнего прочитанного сообщения пользователем в чате."""
-        query = (
-            select(MessageReadStatusModel.message_id)
-            .join(self._table, MessageReadStatusModel.message_id == self._table.id)
-            .where(
-                self._table.chat_id == chat_id,
-                MessageReadStatusModel.profile_id == profile_id,
-            )
-            .order_by(self._table.sent_at.desc())
-            .limit(1)
-        )
-        return await self.session.scalar(query)
-
-    async def bulk_mark_messages_read(
-        self, message_ids: list[UUID], profile_id: UUID
-    ) -> int:
-        """Массовая отметка сообщений как прочитанных.
-
-        Returns:
-            int: Количество отмеченных сообщений
-        """
-        if not message_ids:
-            return 0
-
-        read_statuses_data = [
-            {
-                "message_id": message_id,
-                "profile_id": profile_id,
-                "read_at": datetime.utcnow(),
-            }
-            for message_id in message_ids
-        ]
-
-        stmt = pg_insert(MessageReadStatusModel).values(read_statuses_data)
-        stmt = stmt.on_conflict_do_nothing(index_elements=["message_id", "profile_id"])
-
-        result = await self.session.execute(stmt)
-        marked_count = result.rowcount or 0
-
-        if marked_count > 0:
-            logging.info(
-                f"Bulk marked {marked_count} messages as read for profile {profile_id}"
-            )
-
-        return marked_count
-
-    async def get_latest_message(self, chat_id: UUID) -> MessageModel | None:
-        """
-        Получение последнего сообщения в чате
-        """
-        query = (
-            select(self._table)
-            .where(self._table.chat_id == chat_id)
-            .options(
-                joinedload(self._table.sender),
-                joinedload(self._table.read_statuses),
-            )
-            .order_by(self._table.sent_at.desc())
-            .limit(1)
-        )
-        return await self.session.scalar(query)
