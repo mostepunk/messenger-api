@@ -1,12 +1,13 @@
 import logging
 from datetime import datetime
+from operator import and_
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import TypeAdapter
-from sqlalchemy import func, select, update
+from sqlalchemy import exists, func, literal, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.modules.base_module.db.cruds.base_crud import BaseCRUD
 from app.modules.chat_module.db.models.chat import (
@@ -54,8 +55,8 @@ class MessageCRUD(BaseCRUD[MessageSchema, MessageDBSchema, MessageModel]):
             .where(self._table.id.in_(ids))
             .options(
                 joinedload(self._table.sender),
-                joinedload(self._table.read_statuses),
-                joinedload(self._table.readers),
+                selectinload(self._table.read_statuses),
+                selectinload(self._table.readers),
             )
         )
         items = await self.session.scalars(query)
@@ -97,39 +98,50 @@ class MessageCRUD(BaseCRUD[MessageSchema, MessageDBSchema, MessageModel]):
         if not membership:
             logging.warning(f"User {profile_id} is not member of chat {chat_id}")
             return []
-        message_check = select(self._table.id).where(
-            self._table.id == last_read_message_id, self._table.chat_id == chat_id
-        )
-        if not await self.session.scalar(message_check):
-            logging.warning(
-                f"Message {last_read_message_id} not found in chat {chat_id}"
+
+        unread_messages_cte = (
+            select(
+                self._table.id.label("message_id"),
+                literal(profile_id).label("profile_id"),
+                literal(datetime.utcnow()).label("read_at"),
             )
-            return []
-
-        last_message_time_subquery = (
-            select(self._table.sent_at)
-            .where(self._table.id == last_read_message_id)
-            .scalar_subquery()
-        )
-
-        # Находим все непрочитанные сообщения до указанного времени
-        unread_messages_query = (
-            select(self._table.id)
+            .select_from(self._table)
+            .outerjoin(
+                MessageReadStatusModel,
+                and_(
+                    MessageReadStatusModel.message_id == self._table.id,
+                    MessageReadStatusModel.profile_id == profile_id,
+                ),
+            )
+            .join(
+                ChatUsersModel,
+                and_(
+                    ChatUsersModel.chat_id == chat_id,
+                    ChatUsersModel.profile_id == profile_id,
+                ),
+            )
             .where(
-                # and_(
                 self._table.chat_id == chat_id,
-                self._table.sender_id != profile_id,  # Не отмечаем свои сообщения
-                self._table.sent_at <= last_message_time_subquery,
-                # Исключаем уже прочитанные сообщения
-                self._table.id.notin_(
-                    select(MessageReadStatusModel.message_id).where(
-                        MessageReadStatusModel.profile_id == profile_id
+                self._table.sender_id != profile_id,
+                self._table.sent_at
+                <= (
+                    select(self._table.sent_at)
+                    .where(self._table.id == last_read_message_id)
+                    .scalar_subquery()
+                ),
+                MessageReadStatusModel.message_id.is_(None),  # Еще не прочитано
+                # Проверка существования сообщения встроена в условие
+                exists().where(
+                    and_(
+                        self._table.id == last_read_message_id,
+                        self._table.chat_id == chat_id,
                     )
                 ),
-                # )
             )
-            .order_by(self._table.sent_at)
+            .cte("unread_messages")
         )
+
+        unread_messages_query = select(unread_messages_cte.c.message_id)
         unread_message_ids = list(await self.session.scalars(unread_messages_query))
         if not unread_message_ids:
             return []
@@ -146,6 +158,7 @@ class MessageCRUD(BaseCRUD[MessageSchema, MessageDBSchema, MessageModel]):
         stmt = pg_insert(MessageReadStatusModel).values(read_statuses_data)
         stmt = stmt.on_conflict_do_nothing(index_elements=["message_id", "profile_id"])
         await self.session.execute(stmt)
+        logging.debug(f"Marked {len(unread_message_ids)} messages as read")
 
         return unread_message_ids
 
