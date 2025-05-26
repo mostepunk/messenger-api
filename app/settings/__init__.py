@@ -1,6 +1,7 @@
 from .app_settings import AppSettings
 from .auth_settings import AuthSettings
 from .base import ApiMode, BaseSettings
+from .chat_settings import ChatSettings
 from .db_settings import DBSettings
 from .jwt_settings import JWTSettings
 from .log import LogSettings
@@ -17,6 +18,7 @@ class Config(BaseSettings):
     jwt: JWTSettings = JWTSettings()
     smtp: SMTPSettings = SMTPSettings()
     auth: AuthSettings = AuthSettings()
+    chat: ChatSettings = ChatSettings()
 
 
 config = Config()

@@ -13,6 +13,7 @@ from app.modules.base_module.db.errors import ItemNotFoundError
 from app.modules.base_module.services.base_service import BaseService
 from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
 from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
+from app.modules.chat_module.services.deduplication_service import deduplication_service
 from app.modules.chat_module.websoket.connection_manager import connection_manager
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class WebsocketService(BaseService):
         self.account_crud = AccountCRUD(session)
         self.message_crud = MessageCRUD(session)
         self.chat_crud = ChatCRUD(session)
+        self.dedup_service = deduplication_service
 
     async def handle_incoming_connection(self, websocket: WebSocket, chat_id: UUID):
         await websocket.accept()
@@ -253,6 +255,16 @@ class WebsocketService(BaseService):
         if not text or not text.strip():
             return
         try:
+            is_allowed, reason = await self.dedup_service.check_and_prevent_duplicate(
+                user_id, chat_id, text
+            )
+            if not is_allowed:
+                await self.manager.send_personal_message(
+                    {"type": "error", "message": f"Message blocked: {reason}"}, user_id
+                )
+                logging.info(f"Blocked duplicate message from user {user_id}: {reason}")
+                return
+
             message: "MessageDBSchema" = await self.message_crud.add(
                 {
                     "chat_id": chat_id,
@@ -266,6 +278,7 @@ class WebsocketService(BaseService):
                 {"type": "new_message", "message": message.model_dump(mode="json")},
                 chat_id,
             )
+            self.dedup_service.mark_message_sent(reason, message.id)
 
         except Exception as e:
             logging.error(f"Error sending message: {e}")

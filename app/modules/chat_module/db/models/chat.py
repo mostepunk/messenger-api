@@ -48,7 +48,6 @@ class MessageModel(Base):
 
     sender: Mapped["ProfileModel | None"] = relationship()
     read_statuses: Mapped[list["MessageReadStatusModel"]] = relationship(
-        back_populates="message",
         lazy="selectin",
         cascade="all, delete-orphan",
     )
@@ -81,8 +80,6 @@ class MessageReadStatusModel(Base):
     message_id: Mapped[UUID] = mapped_column(FK("message.id", ondelete="CASCADE"))
     profile_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
     read_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-
-    message: Mapped["MessageModel"] = relationship(back_populates="read_statuses")
 
     __table_args__ = (
         UniqueConstraint("message_id", "profile_id", name="unique_message_user_read"),
