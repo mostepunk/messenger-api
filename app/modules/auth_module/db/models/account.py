@@ -24,9 +24,7 @@ class AccountModel(Base):
     sessions: Mapped[list["AccountSessionModel"] | None] = relationship(
         lazy="joined", cascade="all, delete-orphan"
     )
-    profile: Mapped["ProfileModel"] = relationship(
-        lazy="joined",  # cascade="all, delete-orphan"
-    )
+    profile: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = relationship(lazy="joined")
 
 
 class AccountSessionModel(Base):

@@ -14,21 +14,27 @@ if TYPE_CHECKING:
 
 class ChatModel(Base):
     __tablename__ = "chat"
+    __table_args__ = {"extend_existing": True}
 
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(String(250))
     owner_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
 
-    members: Mapped[list["ProfileModel"]] = relationship(
-        secondary="chat_user",
-        back_populates="chats",
-        lazy="selectin",
+    members: Mapped[list["app.modules.chat_module.db.models.profile.ProfileModel"]] = (
+        relationship(
+            secondary="chat_user",
+            back_populates="chats",
+            lazy="selectin",
+        )
     )
-    owner: Mapped["ProfileModel"] = relationship()
+    owner: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = (
+        relationship()
+    )
 
 
 class ChatUsersModel(Base):
     __tablename__ = "chat_user"
+    __table_args__ = {"extend_existing": True}
 
     chat_id: Mapped[UUID] = mapped_column(FK("chat.id", ondelete="CASCADE"), index=True)
     profile_id: Mapped[UUID] = mapped_column(
@@ -36,8 +42,26 @@ class ChatUsersModel(Base):
     )
 
 
+class MessageReadStatusModel(Base):
+    __tablename__ = "message_read_status"
+
+    message_id: Mapped[UUID] = mapped_column(
+        FK("message.id", ondelete="CASCADE"), index=True
+    )
+    profile_id: Mapped[UUID] = mapped_column(
+        FK("profile.id", ondelete="CASCADE"), index=True
+    )
+    read_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("message_id", "profile_id", name="unique_message_user_read"),
+        {"extend_existing": True},
+    )
+
+
 class MessageModel(Base):
     __tablename__ = "message"
+    __table_args__ = {"extend_existing": True}
 
     chat_id: Mapped[UUID | None] = mapped_column(
         FK("chat.id", ondelete="CASCADE"), index=True
@@ -50,12 +74,16 @@ class MessageModel(Base):
     read_at: Mapped[datetime | None]
     sent_at: Mapped[datetime | None] = mapped_column(index=True)
 
-    sender: Mapped["ProfileModel | None"] = relationship()
-    read_statuses: Mapped[list["MessageReadStatusModel"]] = relationship(
+    sender: Mapped["app.modules.chat_module.db.models.profile.ProfileModel | None"] = (
+        relationship()
+    )
+    read_statuses: Mapped[list[MessageReadStatusModel]] = relationship(
         lazy="selectin",
         cascade="all, delete-orphan",
     )
-    readers: Mapped[list["ProfileModel"] | None] = relationship(
+    readers: Mapped[
+        list["app.modules.chat_module.db.models.profile.ProfileModel"] | None
+    ] = relationship(
         secondary="message_read_status",
         lazy="selectin",
         overlaps="read_statuses",
@@ -76,19 +104,3 @@ class MessageModel(Base):
             if status.profile_id == profile_id:
                 return status.read_at
         return None
-
-
-class MessageReadStatusModel(Base):
-    __tablename__ = "message_read_status"
-
-    message_id: Mapped[UUID] = mapped_column(
-        FK("message.id", ondelete="CASCADE"), index=True
-    )
-    profile_id: Mapped[UUID] = mapped_column(
-        FK("profile.id", ondelete="CASCADE"), index=True
-    )
-    read_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-
-    __table_args__ = (
-        UniqueConstraint("message_id", "profile_id", name="unique_message_user_read"),
-    )

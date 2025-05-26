@@ -31,9 +31,7 @@ def incorrect_connect():
 
 @pytest.fixture(scope="session")
 def health_service(session):
-    return HealthService(
-        session,
-    )
+    return HealthService(session)
 
 
 @pytest.fixture(scope="function")
