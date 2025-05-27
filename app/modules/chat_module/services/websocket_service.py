@@ -115,7 +115,7 @@ class WebsocketService(BaseService):
             await self.manager.join_chat(profile_id, chat_id)
             # не посылать уведомление, что пользователь вошел в чат, если он зашел с другого устройства
             if self.manager.profile_has_multiple_devices_in_chat(chat_id, profile_id):
-                logging.info(
+                logging.debug(
                     f"Profile.ID {profile_id} connected from additional device to chat {chat_id}"
                 )
                 return True
