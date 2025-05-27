@@ -31,7 +31,7 @@ class BaseCRUD(Generic[S_in, S_out, T]):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, in_schema: S_in) -> S_out:
+    async def add(self, in_schema: S_in, return_raw: bool = False) -> S_out:
         """Добавление записи в соответствующую таблицу
 
         Args:
@@ -57,6 +57,8 @@ class BaseCRUD(Generic[S_in, S_out, T]):
                 raise BaseDBError from err
 
         await self.await_relations(item)
+        if return_raw:
+            return item
         return self._out_schema.model_validate(item)
 
     async def add_many(self, in_schema: list[Union[S_in, dict]]) -> list[S_out]:

@@ -30,9 +30,13 @@
 │   ├── adapters                        - адаптеры для внешних запросов
 │   │   ├── base                        - базовые клиенты
 │   │   ├── clients                     - клиенты для подключения к внешним источникам
+│   │   │   └── smtp.py
 │   │   ├── db                          - адаптер Базы Данных
-│   │   │   └── migrations              - миграции базы данных
-│   │   └── errors.py
+│   │   │   ├── migrations              - миграции базы данных
+│   │   │   └── utils
+│   │   │       ├── database_setup.py   - иницализация БД
+│   │   │       └── file_search.py      - поиск файла alembic.ini
+│   │   └── errors.py                   - ошибки модуля БД
 │   ├── dependencies                    - dependency injection для FastAPI
 │   │   ├── dependency_db.py            - получение сессии
 │   │   └── services_dependency.py      - получение сервисов
@@ -40,15 +44,20 @@
 │   │   ├── app.py
 │   │   ├── constructor.py
 │   │   ├── events                      - события, для приложения
+│   │   │   ├── error_event.py          - обрботка ошибок приложения
 │   │   │   └── startup.py              - инициализация событий при старте приложения
 │   │   └── middlewares                 - мидлвари для фастапи
 │   │       ├── cors_middleware.py      - мидлварь CORS
 │   │       ├── errors_middleware.py    - обработчик Exception, который не предусмотрели в базовой логике
-│   │       └── log_middleware.py       - логирование запроса/ответа
+│   │       ├── log_middleware.py       - логирование запроса/ответа
+│   │       └── success_middleware.py   - оборачивает ответ от сервера в стандартную структуру
 │   ├── modules
 │   │   ├── base_module                 - базовый модуль, в нем хранятся наследуемые объекты
+│   │   ├── auth_module                 - модуль авторизации
 │   │   ├── catalogues_module           - модуль справочников
-│   │   └── healthcheck_module          - healthcheck module
+│   │   ├── chat_module                 - модуль чатов
+│   │   ├── healthcheck_module          - healthcheck module
+│   │   └── notify_module               - модуль уведомлений
 │   ├── resources                       - хранение констант
 │   │   └── constants.py
 │   ├── services                        - базовые сервисные ошибки
@@ -56,11 +65,18 @@
 │   ├── settings                        - базовые настройки приложения
 │   │   ├── base.py                     - базовые настройки
 │   │   ├── app_settings.py             - настрофки FastAPI
+│   │   ├── auth_settings.py            - настройки модуля авторизации
+│   │   ├── chat_settings.py            - настройки модуля чатов
 │   │   ├── db_settings.py              - настройки БД
+│   │   ├── jwt_settings.py             - настройки JWT
 │   │   ├── log.py                      - настройки логов
-│   │   └── modules_settings.py         - настройки подключаемых модулей
+│   │   ├── modules_settings.py         - настройки подключаемых модулей
+│   │   └── smtp_settings.py            - настройки почтового сервера
 │   └── utils
 │       ├── err_message.py              - текст ошибки, который присылается при обработке Exception в АПИ
+│       ├── errors_map.py               - коды ошибок
+│       ├── extract_data_from_db_err.py - получение текста ошибки из sqlalchemy
+│       ├── fake_client.py              - фекер, для наполнения тестовыми данными БД
 │       ├── module_creator              - создание новых модулей
 │       │   ├── base_creator.py         - базовый функционал
 │       │   ├── creator.py              - основной исполняемый класс
@@ -68,6 +84,7 @@
 │       └── setup_modules.py            - установка модулей определяемых переменными окружения
 ├── manage.py                           - многофункциональный скрипт
 ├── docker-compose.yml
+├── entrypoint.sh                       - инициализация и запуск бекенда
 ├── logs                                - папка для хранения логов приложения
 ├── main.py                             - основной запускаемый файл
 ├── pyproject.toml                      - настройки проекта

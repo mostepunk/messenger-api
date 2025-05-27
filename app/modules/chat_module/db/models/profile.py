@@ -30,7 +30,7 @@ class ProfileModel(Base):
     middle_name: Mapped[str | None] = mapped_column(String(100))
     username: Mapped[str | None] = mapped_column(String(100), unique=True)
 
-    pd: Mapped[ProfilePersonalDataModel] = relationship()
+    pd: Mapped[ProfilePersonalDataModel] = relationship(lazy="joined")
     chats: Mapped[list["app.modules.chat_module.db.models.chat.ChatModel"] | None] = (
         relationship(
             secondary="chat_user",

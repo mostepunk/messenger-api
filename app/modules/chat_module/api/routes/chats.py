@@ -44,7 +44,7 @@ async def chat_info(
     return await service.chat_info(account.id, chat_id)
 
 
-@router.put("/{chat_id}/", response_model=ChatSchema, summary="Создать чат")
+@router.put("/{chat_id}/", response_model=ChatSchema, summary="Обновить чат")
 async def update_chat(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],

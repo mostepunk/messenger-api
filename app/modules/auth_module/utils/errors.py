@@ -1,6 +1,6 @@
 from fastapi import status
 
-from app.modules.base_module.errors import AppValidationException, BaseAppException
+from app.modules.base_module.errors import BaseAppException
 from app.utils.errors_map import ErrorCode
 
 
@@ -29,15 +29,3 @@ class AccountNotExists(AuthException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     code = ErrorCode.account_not_found
     detail = "Account not found"
-
-
-class AuthValidationException(AppValidationException):
-    pass
-
-
-class AuthIncorrectEmailError(AuthValidationException):
-    detail = "Email invalid"
-
-
-class AuthIncorrectPasswordError(AuthValidationException):
-    detail = "Password invalid"

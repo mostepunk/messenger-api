@@ -23,6 +23,14 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
         self.session = session
         self.select = select(self._table)
 
+    async def add(self, values):
+        if "profile_id" not in values:
+            profile_id = await self.create_empty_profile()
+            values["profile_id"] = profile_id
+
+        item = await super().add(values)
+        return item
+
     async def find_by_email(
         self, email: str, raise_err: bool = True
     ) -> AccountDBSchema | None:
@@ -67,3 +75,11 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
                         joinedload(ChatModel.owner)
                     ),
                 )
+
+    async def create_empty_profile(self) -> UUID:
+        from app.modules.chat_module.db.models.profile import ProfileModel
+
+        profile = ProfileModel()
+        self.session.add(profile)
+        await self.session.flush()
+        return profile.id

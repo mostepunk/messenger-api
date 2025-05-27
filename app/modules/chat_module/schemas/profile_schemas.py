@@ -11,10 +11,13 @@ if TYPE_CHECKING:
 
 
 class BaseProfileSchema(BaseSchema):
-    first_name: str = Field(example="Иван", min_length=1, max_length=100)
-    last_name: str = Field(example="Иванов", min_length=1, max_length=100)
-    middle_name: str = Field(example="Иванович", max_length=100)
-    username: str = Field(example="povelitel_kisok777", min_length=3, max_length=50)
+    first_name: str | None = Field(None, example="Иван", min_length=1, max_length=100)
+
+    last_name: str | None = Field(None, example="Иванов", min_length=1, max_length=100)
+    middle_name: str | None = Field(None, example="Иванович", max_length=100)
+    username: str | None = Field(
+        None, example="povelitel_kisok777", min_length=3, max_length=50
+    )
 
 
 class ProfileSchema(BaseProfileSchema):

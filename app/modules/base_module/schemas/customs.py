@@ -10,9 +10,6 @@ from pydantic import (
 )
 from pydantic_core import CoreSchema, core_schema
 
-from app.modules.auth_module.utils.errors import (
-    AuthIncorrectPasswordError,
-)
 from app.settings import config
 
 
@@ -45,27 +42,15 @@ class EmailStr(BaseValidator):
 class PasswordStr(BaseValidator):
     @classmethod
     def _validate(cls, password: str, /) -> str:
-        err = AuthIncorrectPasswordError()
-        err.fields = [
-            {
-                "field": ["body", "password"],
-                "code": "PASSWORD_INCORRECT",
-                "text": "Does not match password rules",
-                "input": password,
-            }
-        ]
-
         if password:
             if config.auth.password_strip_enabled:
                 password = password.strip()
+
             pattern = re.compile(config.auth.password_pattern)
             if re.match(pattern, password):
                 return password
-            else:
-                raise err
-        else:
-            err.fields[0]["text"] = "Password shouldn't be empty"
-            raise err
+
+        raise ValueError("Password invalid")
 
 
 class PhoneStr(BaseValidator):
