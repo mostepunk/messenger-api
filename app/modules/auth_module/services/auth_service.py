@@ -32,6 +32,7 @@ from app.modules.base_module.db.errors import (
     ItemNotFoundError,
 )
 from app.modules.base_module.services.base_service import BaseService
+from app.modules.chat_module.db.cruds.profile_crud import ProfileCRUD
 from app.modules.notify_module.schemas.notify_schemas import NotificationTypeEnum
 from app.modules.notify_module.services.notification_service import NotificationService
 from app.settings import config
@@ -43,6 +44,7 @@ class AuthService(BaseService):
         self.crud = AccountCRUD(session)
         self.s_crud = AccountSessionCRUD(session)
         self.notification_service = NotificationService()
+        self.profile_crud = ProfileCRUD(session)
 
     async def authenticate_user(
         self, email: str, plain_password: str, fingerprint: str
@@ -103,6 +105,7 @@ class AuthService(BaseService):
 
         elif db_account is None:
             db_account: AccountDBSchema = await self.crud.add(account_dict)
+            profile = await self.profile_crud.add({"account_id": db_account.id})
 
         confirmation_token = db_account.confirm_token
         await self.crud.update(

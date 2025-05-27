@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.modules.base_module.db.models.base import Base
 
 if TYPE_CHECKING:
-    from app.modules.chat_module.db.models.profile import ProfileModel
+    from app.modules.chat_module.db.models import ProfileModel
 
 
 class ChatModel(Base):
@@ -22,14 +22,13 @@ class ChatModel(Base):
 
     members: Mapped[list["app.modules.chat_module.db.models.profile.ProfileModel"]] = (
         relationship(
-            "ProfileModel",
+            "app.modules.chat_module.db.models.profile.ProfileModel",
             secondary="chat_user",
-            back_populates="chats",
-            lazy="selectin",
+            viewonly=True,
         )
     )
-    owner: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = (
-        relationship("app.modules.chat_module.db.models.profile.ProfileModel")
+    owner: Mapped["ProfileModel"] = relationship(
+        "app.modules.chat_module.db.models.profile.ProfileModel"
     )
 
 
