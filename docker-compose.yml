@@ -27,7 +27,7 @@ services:
       - POSTGRES_USER=${PG_SERVER_LOGIN}
       - POSTGRES_PASSWORD=${PG_SERVER_PASSWD}
     ports:
-      - "${PG_SERVER_PORT}:5432"
+      - "${PG_SERVER_EXTERNAL_PORT}:5432"
     volumes:
       - ./db:/var/lib/postgresql/data
       - ./dumps:/dumps
