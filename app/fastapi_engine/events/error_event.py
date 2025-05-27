@@ -24,6 +24,10 @@ def init_error_handler(app: FastAPI):
 
     @app.exception_handler(HTTPException)
     async def base_error_handler(_: Request, err: HTTPException) -> JSONResponse:
+        if err.status_code == status.HTTP_401_UNAUTHORIZED:
+            code = ErrorCode.auth_error
+        else:
+            code = ErrorCode.unknown
         return err_msg(
             status_code=err.status_code,
             error_body={

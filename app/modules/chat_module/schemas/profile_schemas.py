@@ -35,5 +35,6 @@ class ProfileDBSchema(ProfileSchema, BaseDB):
     def find_chat(self, chat_id: UUID) -> "ChatDBSchema | None":
         return next((chat for chat in self.chats if chat.id == chat_id), None)
 
+    @property
     def chat_ids(self) -> list[UUID]:
         return [chat.id for chat in self.chats]

@@ -111,7 +111,7 @@ class ChatService(BaseService):
         if chat is None:
             raise ChatNotFound()
 
-        if chat_id not in account_db.profile.chat_ids():
+        if chat_id not in account_db.profile.chat_ids:
             raise AccessDenied()
 
         total, messages = await self.message_crud.chat_history(
