@@ -95,7 +95,7 @@ class TestWebsocketService:
 
         assert result is None
 
-    @pytest.mark.skip("Разобраться почему не отправляет сообщения")
+    # @pytest.mark.skip("Разобраться почему не отправляет сообщения")
     async def test_auto_join_chat_success(
         self, websocket_service, mock_websocket, mock_account_data
     ):
@@ -117,7 +117,15 @@ class TestWebsocketService:
 
         assert result is True
         websocket_service.manager.join_chat.assert_called_once_with(profile_id, chat_id)
+
         websocket_service.manager.send_chat_message.assert_called_once()
+        call_args = websocket_service.manager.send_chat_message.call_args[0]
+        assert call_args[0]["type"] == "user_joined"
+        assert call_args[1] == chat_id
+        assert (
+            websocket_service.manager.send_chat_message.call_args[1]["exclude_user"]
+            == profile_id
+        )
 
     async def test_auto_join_chat_not_member(
         self, websocket_service, mock_websocket, mock_account_data
@@ -456,7 +464,6 @@ class TestWebsocketService:
         assert call_args[0]["message_id"] == str(message_id)
         assert call_args[1] == mock_message.sender.id
 
-    @pytest.mark.skip("В аргументах не показывает exclude_user")
     async def test_handle_typing_indicator(self, websocket_service, mock_account_data):
         """Тест обработки индикатора печати"""
         message_data = {"type": "typing", "is_typing": True}
@@ -468,22 +475,14 @@ class TestWebsocketService:
         websocket_service.manager.send_chat_message.assert_called_once()
 
         call_args = websocket_service.manager.send_chat_message.call_args[0]
-        print(f"{call_args=}")
-        # call_args = (
-        #     {
-        #         "type": "typing",
-        #         "chat_id": "3d2fc2ef-46a3-4864-a3b4-8952a5908bdf",
-        #         "user_id": "0166d644-29a9-4f61-843c-edaaab2cf8a6",
-        #         "is_typing": True,
-        #         "timestamp": "2025-05-26T23:02:58.420859",
-        #     },
-        #     UUID("3d2fc2ef-46a3-4864-a3b4-8952a5908bdf"),
-        # )
         assert call_args[0]["type"] == "typing"
         assert call_args[0]["is_typing"] is True
         assert call_args[0]["user_id"] == str(user_id)
         assert call_args[1] == chat_id
-        assert call_args[2] == user_id  # exclude_user
+        assert (
+            websocket_service.manager.send_chat_message.call_args[1]["exclude_user"]
+            == user_id
+        )
 
     async def test_handle_get_unread_count(
         self, websocket_service, mock_websocket, mock_account_data
@@ -505,8 +504,8 @@ class TestWebsocketService:
 
         # Проверяем содержимое ответа
         call_args = websocket_service.manager.send_message_to_socket.call_args[0]
-        assert call_args[0]["type"] == "unread_count"
-        assert call_args[0]["count"] == 5
+        assert call_args[1]["type"] == "unread_count"
+        assert call_args[1]["count"] == 5
 
     async def test_handle_websocket_message_unknown_type(
         self, websocket_service, mock_websocket, mock_account_data
@@ -549,7 +548,6 @@ class TestWebsocketService:
         assert call_args[0]["type"] == "error"
         assert "Failed to send message" in call_args[0]["message"]
 
-    @pytest.mark.skip("В аргументах не показывает exclude_user")
     async def test_handle_disconnect(self, websocket_service, mock_account_data):
         """Тест обработки отключения пользователя"""
         user_id = mock_account_data["profile_id"]
@@ -559,23 +557,14 @@ class TestWebsocketService:
 
         websocket_service.manager.send_chat_message.assert_called_once()
 
-        # Проверяем содержимое сообщения об отключении
-        # call_args=(
-        # d = {
-        #     "type": "user_disconnected",
-        #     "chat_id": "112f39e4-b06d-4946-891e-81a8ad8064f5",
-        #     "user_id": "4132581a-f7e9-4fc0-9553-a9284a2ed2ba",
-        #     "timestamp": "2025-05-26T22:37:16.158225",
-        # }
-        # UUID("112f39e4-b06d-4946-891e-81a8ad8064f5")
         call_args = websocket_service.manager.send_chat_message.call_args[0]
-        # print(f"{call_args=}")
         assert call_args[0]["type"] == "user_disconnected"
         assert call_args[0]["user_id"] == str(user_id)
         assert call_args[1] == chat_id
-        # FAILS
-        assert len(call_args) == 3
-        assert call_args[2] == user_id  # exclude_user
+        assert (
+            websocket_service.manager.send_chat_message.call_args[1]["exclude_user"]
+            == user_id
+        )
 
     @patch("app.modules.chat_module.services.websocket_service.config")
     async def test_handle_incoming_connection_full_flow(
@@ -601,13 +590,11 @@ class TestWebsocketService:
         websocket_service.handle_websocket_message = AsyncMock()
         websocket_service.handle_disconnect = AsyncMock()
 
-        # Мокаем manager.receive_message_from_socket
         websocket_service.manager.receive_message_from_socket.side_effect = [
             {"type": "send_message", "text": "Hello"},
             WebSocketDisconnect(),
         ]
 
-        # Вызываем обработчик
         await websocket_service.handle_incoming_connection(mock_websocket, chat_id)
 
         # Проверяем последовательность вызовов

@@ -23,19 +23,19 @@ class ConnectionManager:
             f"Account.ID {user_id} connected. Total connections: {len(self.active_connections[user_id])}"
         )
 
-    def profile_is_in_chat(self, chat_id: UUID, profile_id: UUID) -> bool:
+    async def profile_is_in_chat(self, chat_id: UUID, profile_id: UUID) -> bool:
         """Проверить, находится ли пользователь в чате (хотя бы с одного устройства)"""
         chat_connections = self.chat_connections.get(chat_id, {}).get(profile_id, [])
         return len(chat_connections) > 0
 
-    def profile_has_multiple_devices_in_chat(
+    async def profile_has_multiple_devices_in_chat(
         self, chat_id: UUID, profile_id: UUID
     ) -> bool:
         """Проверить, есть ли у пользователя несколько устройств в чате"""
         chat_connections = self.chat_connections.get(chat_id, {}).get(profile_id, [])
         return len(chat_connections) > 1
 
-    def disconnect(self, socket: WebSocket, user_id: UUID):
+    async def disconnect(self, socket: WebSocket, user_id: UUID):
         """Отключение пользователя"""
         # Удаляем из активных соединений
         if user_id in self.active_connections:
@@ -109,7 +109,7 @@ class ConnectionManager:
                     disconnected_sockets.append(socket)
 
             for socket in disconnected_sockets:
-                self.disconnect(socket, user_id)
+                await self.disconnect(socket, user_id)
 
     async def send_chat_message(
         self, message: dict, chat_id: UUID, exclude_user: UUID = None
@@ -133,7 +133,7 @@ class ConnectionManager:
                     disconnected_sockets.append((socket, user_id))
 
         for socket, user_id in disconnected_sockets:
-            self.disconnect(socket, user_id)
+            await self.disconnect(socket, user_id)
 
     async def broadcast_to_chat(self, message: dict, chat_id: UUID):
         """Рассылка сообщения всем участникам чата включая отправителя"""

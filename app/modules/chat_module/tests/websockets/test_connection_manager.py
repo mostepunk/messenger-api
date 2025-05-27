@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -48,17 +48,17 @@ class TestConnectionManager:
         assert len(connection_manager.active_connections[user_id]) == 2
         assert connection_manager.get_user_connection_count(user_id) == 2
 
-    def test_disconnect_user(self, connection_manager, mock_websocket):
+    async def test_disconnect_user(self, connection_manager, mock_websocket):
         """Тест отключения пользователя"""
         user_id = uuid4()
 
         connection_manager.active_connections[user_id].append(mock_websocket)
-        connection_manager.disconnect(mock_websocket, user_id)
+        await connection_manager.disconnect(mock_websocket, user_id)
 
         assert user_id not in connection_manager.active_connections
         assert connection_manager.is_user_online(user_id) is False
 
-    def test_disconnect_one_device_of_many(
+    async def test_disconnect_one_device_of_many(
         self, connection_manager, mock_websocket, mock_websocket2
     ):
         """Тест отключения одного устройства из нескольких"""
@@ -69,7 +69,7 @@ class TestConnectionManager:
             mock_websocket2,
         ]
 
-        connection_manager.disconnect(mock_websocket, user_id)
+        await connection_manager.disconnect(mock_websocket, user_id)
 
         assert connection_manager.is_user_online(user_id) is True
         assert len(connection_manager.active_connections[user_id]) == 1
@@ -89,7 +89,7 @@ class TestConnectionManager:
         assert chat_id in connection_manager.chat_connections
         assert user_id in connection_manager.chat_connections[chat_id]
         assert mock_websocket in connection_manager.chat_connections[chat_id][user_id]
-        assert connection_manager.profile_is_in_chat(chat_id, user_id) is True
+        assert await connection_manager.profile_is_in_chat(chat_id, user_id) is True
 
     async def test_leave_chat(self, connection_manager, mock_websocket):
         """Тест покидания чата"""
@@ -104,7 +104,7 @@ class TestConnectionManager:
         await connection_manager.leave_chat(user_id, chat_id)
 
         assert user_id not in connection_manager.chat_connections.get(chat_id, {})
-        assert connection_manager.profile_is_in_chat(chat_id, user_id) is False
+        assert await connection_manager.profile_is_in_chat(chat_id, user_id) is False
 
     async def test_leave_chat_single_device(
         self, connection_manager, mock_websocket, mock_websocket2
@@ -124,7 +124,7 @@ class TestConnectionManager:
         )
 
         # Пользователь должен остаться в чате через второе устройство
-        assert connection_manager.profile_is_in_chat(chat_id, user_id) is True
+        assert await connection_manager.profile_is_in_chat(chat_id, user_id) is True
         assert len(connection_manager.chat_connections[chat_id][user_id]) == 1
         assert mock_websocket2 in connection_manager.chat_connections[chat_id][user_id]
 
@@ -207,8 +207,8 @@ class TestConnectionManager:
         user2_id = uuid4()
         user3_id = uuid4()
 
-        connection_manager.chat_connections[chat_id][user1_id] = [Mock()]
-        connection_manager.chat_connections[chat_id][user2_id] = [Mock()]
+        connection_manager.chat_connections[chat_id][user1_id] = [AsyncMock()]
+        connection_manager.chat_connections[chat_id][user2_id] = [AsyncMock()]
 
         online_users = connection_manager.get_chat_online_users(chat_id)
 
@@ -225,14 +225,14 @@ class TestConnectionManager:
         user3_id = uuid4()
 
         connection_manager.chat_connections[chat_id][user1_id] = [
-            Mock(),
-            Mock(),
+            AsyncMock(),
+            AsyncMock(),
         ]
-        connection_manager.chat_connections[chat_id][user2_id] = [Mock()]
+        connection_manager.chat_connections[chat_id][user2_id] = [AsyncMock()]
         connection_manager.chat_connections[chat_id][user3_id] = [
-            Mock(),
-            Mock(),
-            Mock(),
+            AsyncMock(),
+            AsyncMock(),
+            AsyncMock(),
         ]
 
         stats = connection_manager.get_chat_stats(chat_id)
@@ -251,28 +251,37 @@ class TestConnectionManager:
         assert stats["connections"] == 0
         assert stats["users_with_multiple_devices"] == 0
 
-    def test_profile_has_multiple_devices_in_chat(self, connection_manager):
+    async def test_profile_has_multiple_devices_in_chat(self, connection_manager):
         """Тест проверки наличия нескольких устройств у пользователя в чате"""
         chat_id = uuid4()
         user_id = uuid4()
 
         # Сначала нет устройств
         assert (
-            connection_manager.profile_has_multiple_devices_in_chat(chat_id, user_id)
+            await connection_manager.profile_has_multiple_devices_in_chat(
+                chat_id, user_id
+            )
             is False
         )
 
         # Одно устройство
-        connection_manager.chat_connections[chat_id][user_id] = [Mock()]
+        connection_manager.chat_connections[chat_id][user_id] = [AsyncMock()]
         assert (
-            connection_manager.profile_has_multiple_devices_in_chat(chat_id, user_id)
+            await connection_manager.profile_has_multiple_devices_in_chat(
+                chat_id, user_id
+            )
             is False
         )
 
         # Два устройства
-        connection_manager.chat_connections[chat_id][user_id] = [Mock(), Mock()]
+        connection_manager.chat_connections[chat_id][user_id] = [
+            AsyncMock(),
+            AsyncMock(),
+        ]
         assert (
-            connection_manager.profile_has_multiple_devices_in_chat(chat_id, user_id)
+            await connection_manager.profile_has_multiple_devices_in_chat(
+                chat_id, user_id
+            )
             is True
         )
 

@@ -64,8 +64,12 @@ class MessageDeduplicationService:
         content = f"{user_id}:{chat_id}:{text.strip()}"
         return hashlib.sha256(content.encode()).hexdigest()
 
-    def mark_message_sent(self, message_key: str, message_id: UUID):
-        """Отмечает сообщение как отправленное"""
+    async def mark_message_sent(self, message_key: str, message_id: UUID):
+        """Отмечает сообщение как отправленное
+
+        отмечено в асинхронном режиме, потому что этот сервис мокается через AsyncMock
+        и пытается запустить его в асинхронном режиме
+        """
         self._recent_messages[message_key] = (time.time(), message_id)
 
     async def _cleanup_expired_messages(self):

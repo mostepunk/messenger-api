@@ -50,7 +50,7 @@ class WebsocketService(BaseService):
 
             is_joined = await self.auto_join_chat(chat_id, profile_id, websocket)
             if not is_joined:
-                self.manager.disconnect(websocket, profile_id)
+                await self.manager.disconnect(websocket, profile_id)
                 return
             await self.send_chat_history(chat_id, profile_id, websocket)
 
@@ -74,7 +74,7 @@ class WebsocketService(BaseService):
             )
             if "profile_id" in locals() and "chat_id" in locals():
                 await self.handle_disconnect(profile_id, chat_id)
-                self.manager.disconnect(websocket, profile_id)
+                await self.manager.disconnect(websocket, profile_id)
 
         except Exception as e:
             logging.error(f"WebSocket connection error: {e}")
@@ -114,7 +114,9 @@ class WebsocketService(BaseService):
 
             await self.manager.join_chat(profile_id, chat_id)
             # не посылать уведомление, что пользователь вошел в чат, если он зашел с другого устройства
-            if self.manager.profile_has_multiple_devices_in_chat(chat_id, profile_id):
+            if await self.manager.profile_has_multiple_devices_in_chat(
+                chat_id, profile_id
+            ):
                 logging.debug(
                     f"Profile.ID {profile_id} connected from additional device to chat {chat_id}"
                 )
@@ -216,7 +218,7 @@ class WebsocketService(BaseService):
         """Обработка покидания чата"""
         try:
             await self.manager.leave_chat(profile_id, chat_id)
-            if not self.manager.profile_is_in_chat(chat_id, profile_id):
+            if not await self.manager.profile_is_in_chat(chat_id, profile_id):
                 await self.manager.send_chat_message(
                     {
                         "type": "user_left",
@@ -286,7 +288,7 @@ class WebsocketService(BaseService):
                 {"type": "new_message", "message": message.model_dump(mode="json")},
                 chat_id,
             )
-            self.dedup_service.mark_message_sent(reason, message.id)
+            await self.dedup_service.mark_message_sent(reason, message.id)
 
         except Exception as e:
             logging.error(f"Error sending message: {e}")
@@ -413,11 +415,12 @@ class WebsocketService(BaseService):
                 chat_id, profile_id
             )
             await self.manager.send_message_to_socket(
+                websocket,
                 {
                     "type": "unread_count",
                     "chat_id": str(chat_id),
                     "count": unread_count,
-                }
+                },
             )
         except Exception as e:
             logging.error(f"Error getting unread count: {e}")

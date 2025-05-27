@@ -29,7 +29,7 @@ class TestMessageDeduplicationService:
         assert isinstance(reason, str)
 
         message_id = uuid4()
-        dedup_service.mark_message_sent(reason, message_id)
+        await dedup_service.mark_message_sent(reason, message_id)
 
         is_allowed, reason = await dedup_service.check_and_prevent_duplicate(
             user_id, chat_id, text
@@ -116,7 +116,7 @@ class TestMessageDeduplicationService:
             user_id, chat_id, text1
         )
         assert is_allowed1 is True
-        dedup_service.mark_message_sent(reason1, uuid4())
+        await dedup_service.mark_message_sent(reason1, uuid4())
 
         is_allowed2, reason2 = await dedup_service.check_and_prevent_duplicate(
             user_id, chat_id, text2
@@ -143,11 +143,12 @@ class TestMessageDeduplicationService:
         chat_id = uuid4()
         text = "Конкурентное сообщение"
 
-        tasks = [
-            dedup_service.check_and_prevent_duplicate(user_id, chat_id, text)
-            for _ in range(5)
-        ]
+        async def make_request():
+            return await dedup_service.check_and_prevent_duplicate(
+                user_id, chat_id, text
+            )
 
+        tasks = [make_request() for _ in range(5)]
         results = await asyncio.gather(*tasks)
 
         allowed_count = sum(1 for is_allowed, _ in results if is_allowed)
