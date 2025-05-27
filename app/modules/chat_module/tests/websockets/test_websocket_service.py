@@ -20,7 +20,7 @@ class TestWebsocketService:
     def websocket_service(self, mock_session):
         service = WebsocketService(mock_session)
         service.manager = AsyncMock()
-        service.account_crud = AsyncMock()
+        service.profile_crud = AsyncMock()
         service.message_crud = AsyncMock()
         service.chat_crud = AsyncMock()
         service.dedup_service = AsyncMock()
@@ -40,10 +40,12 @@ class TestWebsocketService:
 
         account = Mock()
         account.id = account_id
-        account.profile = Mock()
-        account.profile.id = profile_id
 
-        return {"account": account, "account_id": account_id, "profile_id": profile_id}
+        profile = Mock()
+        profile.id = profile_id
+        profile.account_id = account_id
+
+        return {"account": profile, "account_id": account_id, "profile_id": profile_id}
 
     async def test_authorize_account_success(
         self, websocket_service, mock_account_data
@@ -56,13 +58,15 @@ class TestWebsocketService:
             "app.modules.chat_module.services.websocket_service.authenticate_websocket_user"
         ) as mock_auth:
             mock_auth.return_value = Mock(id=mock_account.id)
-            websocket_service.account_crud.get_by_id.return_value = mock_account
+            websocket_service.profile_crud.get_profile_by_account_id.return_value = (
+                mock_account
+            )
 
             result = await websocket_service.authorize_account(auth_message)
 
             assert result == mock_account
             mock_auth.assert_called_once_with("valid_token")
-            websocket_service.account_crud.get_by_id.assert_called_once_with(
+            websocket_service.profile_crud.get_profile_by_account_id.assert_called_once_with(
                 mock_account.id
             )
 

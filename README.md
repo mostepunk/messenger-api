@@ -12,9 +12,21 @@
 
 ### docker-compose
 1. Установить переменные окружения: `cp .env.sample .env`
-    1. Все переменные окружения указаны дефолтные.
+    1. Указаны все необходимые переменные для дефолтного старта
 2. `docker compose up`
 3. http://localhost:8788/
+
+### Предустановленные пользователи
+Если будет стоять переменная окружения `ENVIRONMENT=LOCAL`,
+то БД заполнится фейковыми данными. В .env.sample она установлена по умолчанию
+
+| login                | password |
+| :------------------: | :------: |
+| admin@admin.ru       | admin    |
+| api-test@example.com | admin    |
+| user1@example.com    | admin    |
+| user2@example.com    | admin    |
+| user3@example.com    | admin    |
 
 
 ## Схема БД
@@ -94,7 +106,6 @@
     ├── conftest.py                     - импорт фикстур для использования pytest
     ├── fakers.py                       - фейковые клиенты, имитирующие поведение клиентов
     └── fixtures.py                     - базоыве фикстуры
-
 ```
 ## Архитектурные принципы
 
@@ -154,8 +165,10 @@
 
 - `GET /chats/` - Список чатов пользователя
 - `POST /chats/` - Создание чата
+- `PUT /chats/{chat_id}` - Изменение чата
 - `GET /chats/{chat_id}/` - Информация о чате
 - `GET /chats/{chat_id}/history/` - История сообщений
+- `GET /chats/ui` - Интерфейс теста чатов
 
 ### WebSocket
 - `WS /chats/{chat_id}/ws` - WebSocket соединение для чата

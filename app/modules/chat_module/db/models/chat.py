@@ -28,7 +28,7 @@ class ChatModel(Base):
         )
     )
     owner: Mapped["ProfileModel"] = relationship(
-        "app.modules.chat_module.db.models.profile.ProfileModel"
+        "app.modules.chat_module.db.models.profile.ProfileModel", viewonly=True
     )
 
 
@@ -75,11 +75,12 @@ class MessageModel(Base):
     sent_at: Mapped[datetime | None] = mapped_column(index=True)
 
     sender: Mapped["app.modules.chat_module.db.models.profile.ProfileModel | None"] = (
-        relationship()
+        relationship(viewonly=True)
     )
     read_statuses: Mapped[list[MessageReadStatusModel]] = relationship(
         lazy="selectin",
         cascade="all, delete-orphan",
+        viewonly=True,
     )
     readers: Mapped[
         list["app.modules.chat_module.db.models.profile.ProfileModel"] | None
@@ -87,6 +88,7 @@ class MessageModel(Base):
         secondary="message_read_status",
         lazy="selectin",
         overlaps="read_statuses",
+        viewonly=True,
     )
 
     def is_read_by(self, profile_id: UUID) -> bool:

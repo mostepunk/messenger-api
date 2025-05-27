@@ -27,7 +27,7 @@ class LogSettings(BaseSettings):
 
     access_log_path: str = "./logs/access.log"
     asgi_log_path: str = "./logs/asgi.log"
-    write_to_file: bool = True
+    write_to_file: bool = False
 
     @property
     def logging_level(self):

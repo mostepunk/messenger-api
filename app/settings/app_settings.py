@@ -10,18 +10,18 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="api_")
 
     host: str = "0.0.0.0"
-    service_port: int = 8899
+    service_port: int = 8788
     reload: bool = False
     # mode: ApiMode
     workers: int = 1
     prefix: str = ""
 
-    title: str = "REST-API engine"
+    title: str = "Messenger REST-API engine"
     description: str = ""
-    version: str = "0.1.a"
+    version: str = "1.0.0"
 
     contact_name: str = "Mostepan Vladimir"
-    contact_email: str
+    contact_email: str = "user@example.com"
 
     redoc_path: Union[str, None] = None
     doc_path: str = "/docs"
@@ -32,8 +32,6 @@ class AppSettings(BaseSettings):
     route_setup_new_password: str = "/confirm-email"
 
     cors_allowed_hosts: str = "http://localhost:5173,"
-    text_max_length: int = 500
-    string_max_length: int = 100
 
     @property
     def allowed_hosts(self):

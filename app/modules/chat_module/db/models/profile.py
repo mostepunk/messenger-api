@@ -35,7 +35,7 @@ class ProfileModel(Base):
         unique=True,
     )
 
-    pd: Mapped[ProfilePersonalDataModel] = relationship()
+    pd: Mapped[ProfilePersonalDataModel] = relationship(ProfilePersonalDataModel, viewonly=True)
     chats: Mapped[list["ChatModel"] | None] = relationship(
         "app.modules.chat_module.db.models.chat.ChatModel",
         secondary="chat_user",
