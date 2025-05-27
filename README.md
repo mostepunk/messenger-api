@@ -28,6 +28,14 @@
 | user2@example.com    | admin    |
 | user3@example.com    | admin    |
 
+### Запуск тестов
+1. localhost:
+    1. `virturalenv venv`
+    2. `source venv/bin/activate`
+    3. `pip install requirements-dev.txt`
+    4. `pytest`
+2. В контейнере:
+    1. `docker compose exec messenger-api /run_tests.sh`
 
 ## Схема БД
 ![БД](./db_schema.png)

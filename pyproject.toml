@@ -68,6 +68,7 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     # "ignore::PytestDeprecationWarning",
 ]
+asyncio_default_fixture_loop_scope="session"
 
 [tool.isort]
 profile = "black"

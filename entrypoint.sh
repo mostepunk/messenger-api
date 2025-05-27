@@ -13,7 +13,7 @@ alembic upgrade head
 
 if [ "$ENVIRONMENT" = "LOCAL" ]; then
     echo "-> ENVIRONMENT= $ENVIRONMENT. Fill DB with fake data..."
-    python manage.py db --fill
+    python manage.py db --fill || echo "-> DB already filled with fake data"
 else
     echo "-> Do not fill DB with fake data..."
 fi
