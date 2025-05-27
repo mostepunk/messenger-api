@@ -22,13 +22,15 @@ class ChatModel(Base):
 
     members: Mapped[list["app.modules.chat_module.db.models.profile.ProfileModel"]] = (
         relationship(
+            "ProfileModel",
             secondary="chat_user",
             back_populates="chats",
             lazy="selectin",
         )
     )
+    # owner: Mapped["ProfileModel"] = (
     owner: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = (
-        relationship()
+        relationship("app.modules.chat_module.db.models.profile.ProfileModel")
     )
 
 

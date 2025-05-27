@@ -33,8 +33,8 @@ class ProfileModel(Base):
     pd: Mapped[ProfilePersonalDataModel] = relationship(lazy="joined")
     chats: Mapped[list["app.modules.chat_module.db.models.chat.ChatModel"] | None] = (
         relationship(
+            "ChatModel",
             secondary="chat_user",
             lazy="selectin",
-            back_populates="members",
         )
     )
