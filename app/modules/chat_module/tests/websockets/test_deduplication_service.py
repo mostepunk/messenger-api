@@ -96,12 +96,12 @@ class TestMessageDeduplicationService:
         is_allowed1, reason1 = await dedup_service.check_and_prevent_duplicate(
             user_id, chat_id, ""
         )
-        assert is_allowed1 is True
+        assert is_allowed1 is False
 
         is_allowed2, reason2 = await dedup_service.check_and_prevent_duplicate(
             user_id, chat_id, "   "
         )
-        assert is_allowed2 is True
+        assert is_allowed2 is False
 
     async def test_whitespace_normalization(self, dedup_service):
         """Тест нормализации пробелов в сообщениях"""

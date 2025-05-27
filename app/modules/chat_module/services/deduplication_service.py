@@ -28,6 +28,9 @@ class MessageDeduplicationService:
         Returns:
             tuple: (is_allowed, reason) - разрешено ли отправлять сообщение и причина
         """
+        text = text.strip()
+        if not text:
+            return False, "Empty message"
         lock_key = self._get_user_chat_lock_key(user_id, chat_id)
         message_key = self._generate_message_key(user_id, chat_id, text)
 
@@ -37,6 +40,7 @@ class MessageDeduplicationService:
                 f"Message key in recent: {message_key in self._recent_messages}"
             )
             current_time = time.time()
+            await self._cleanup_expired_messages()
 
             if message_key in self._recent_messages:
                 last_time, last_message_id = self._recent_messages[message_key]
@@ -52,7 +56,7 @@ class MessageDeduplicationService:
 
                 del self._recent_messages[message_key]
 
-            await self._cleanup_expired_messages()
+            self._recent_messages[message_key] = (current_time, None)
             return True, message_key
 
     def _get_user_chat_lock_key(self, user_id: UUID, chat_id: UUID) -> str:
