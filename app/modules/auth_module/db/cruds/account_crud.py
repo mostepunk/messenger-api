@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.modules.auth_module.db.models import AccountModel
 from app.modules.auth_module.schemas.account import AccountDBSchema, AccountSchema
@@ -23,22 +22,10 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
         self.session = session
         self.select = select(self._table)
 
-    async def add(self, values):
-        if "profile_id" not in values:
-            profile_id = await self.create_empty_profile()
-            values["profile_id"] = profile_id
-
-        item = await super().add(values)
-        return item
-
     async def find_by_email(
         self, email: str, raise_err: bool = True
     ) -> AccountDBSchema | None:
-        query = (
-            select(self._table)
-            .where(self._table.email == email)
-            .options(self.joinedload_profile)
-        )
+        query = select(self._table).where(self._table.email == email)
 
         res = await self.session.scalar(query)
         if not res:
@@ -52,34 +39,11 @@ class AccountCRUD(BaseCRUD[AccountSchema, AccountDBSchema, AccountModel]):
         """Получение записи по уникальному идентификатору"""
 
         query = (
-            select(self._table)
-            .where(self._table.id == item_uuid)
-            .options(self.joinedload_profile)
+            select(self._table).where(self._table.id == item_uuid)
+            # .options(self.joinedload_profile)
         )
         item = await self.session.scalar(query)
         await self.await_relations(item)
         if not item:
             raise ItemNotFoundError(f"Item {item_uuid} not found")
         return self._out_schema.model_validate(item)
-
-    @property
-    def joinedload_profile(self):
-        # FIXME: эти импорты тут специально лежат, чтобы не было цикличных импортов
-        from app.modules.chat_module.db.models.profile import ProfileModel
-        from app.modules.chat_module.db.models.chat import ChatModel
-
-        return joinedload(self._table.profile).options(
-                    joinedload(ProfileModel.pd),
-                    joinedload(ProfileModel.chats).options(
-                        joinedload(ChatModel.members),
-                        joinedload(ChatModel.owner)
-                    ),
-                )
-
-    async def create_empty_profile(self) -> UUID:
-        from app.modules.chat_module.db.models.profile import ProfileModel
-
-        profile = ProfileModel()
-        self.session.add(profile)
-        await self.session.flush()
-        return profile.id

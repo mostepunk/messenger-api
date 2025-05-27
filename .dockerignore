@@ -5,6 +5,7 @@
 .gitignore
 .gitlab-ci.yml
 docker-*.yml
+db/
 pyproject.toml
 README.*
 .cache

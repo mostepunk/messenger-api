@@ -28,7 +28,6 @@ class ChatModel(Base):
             lazy="selectin",
         )
     )
-    # owner: Mapped["ProfileModel"] = (
     owner: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = (
         relationship("app.modules.chat_module.db.models.profile.ProfileModel")
     )

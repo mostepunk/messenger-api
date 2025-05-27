@@ -38,3 +38,13 @@ class ProfileDBSchema(ProfileSchema, BaseDB):
     @property
     def chat_ids(self) -> list[UUID]:
         return [chat.id for chat in self.chats]
+
+    def is_memeber_of_chat(self, chat_id: UUID) -> bool:
+        return chat_id in self.chat_ids
+
+    def is_owner_of_chat(self, chat_id: UUID) -> bool:
+        chat = self.find_chat(chat_id)
+        if chat is None:
+            return False
+
+        return chat.owner.id == self.id

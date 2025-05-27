@@ -19,12 +19,10 @@ class AccountModel(Base):
     description: Mapped[str | None]
     is_confirmed: Mapped[bool] = mapped_column(default=False)
     confirmation_token: Mapped[str | None] = mapped_column(String(300))
-    profile_id: Mapped[UUID] = mapped_column(FK("profile.id", ondelete="CASCADE"))
 
     sessions: Mapped[list["AccountSessionModel"] | None] = relationship(
         lazy="joined", cascade="all, delete-orphan"
     )
-    profile: Mapped["app.modules.chat_module.db.models.profile.ProfileModel"] = relationship(lazy="joined")
 
 
 class AccountSessionModel(Base):

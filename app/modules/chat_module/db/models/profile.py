@@ -29,11 +29,16 @@ class ProfileModel(Base):
     first_name: Mapped[str | None] = mapped_column(String(100))
     middle_name: Mapped[str | None] = mapped_column(String(100))
     username: Mapped[str | None] = mapped_column(String(100), unique=True)
+    account_id: Mapped[UUID] = mapped_column(
+        FK("account.id", ondelete="CASCADE"),
+        index=True,
+        unique=True,
+    )
 
     pd: Mapped[ProfilePersonalDataModel] = relationship(lazy="joined")
     chats: Mapped[list["app.modules.chat_module.db.models.chat.ChatModel"] | None] = (
         relationship(
-            "ChatModel",
+            "app.modules.chat_module.db.models.chat.ChatModel",
             secondary="chat_user",
             lazy="selectin",
         )

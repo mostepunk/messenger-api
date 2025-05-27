@@ -1,6 +1,6 @@
-import random
 from uuid import uuid4
 
+from app.modules.auth_module.db.factories.account import accounts
 from app.utils.fake_client import fake
 
 profiles = {
@@ -12,18 +12,17 @@ profiles = {
             "first_name": fake.first_name_male(),
             "middle_name": fake.middle_name_male(),
             "username": fake.word(),
+            "!refs": {
+                "account_id": {
+                    "target_class": "app.modules.auth_module.db.models.account:AccountModel",
+                    "criteria": {"id": acc["id"]},
+                    "field": "id",
+                },
+            },
         }
-        for _ in range(5)
+        for acc in accounts["data"]
     ],
 }
-
-
-IDS = [profile["id"] for profile in profiles["data"]]
-
-
-def profile_id():
-    id = random.choice(IDS)
-    return IDS.pop(IDS.index(id))
 
 
 profile_personal_data = {
@@ -35,11 +34,11 @@ profile_personal_data = {
             "!refs": {
                 "profile_id": {
                     "target_class": "app.modules.chat_module.db.models.profile:ProfileModel",
-                    "criteria": {"id": profile_id()},
+                    "criteria": {"id": profile["id"]},
                     "field": "id",
                 },
             },
         }
-        for _ in range(5)
+        for profile in profiles["data"]
     ],
 }

@@ -18,7 +18,7 @@ from app.modules.chat_module.services.chat_service import ChatService
 router = APIRouter()
 
 
-@router.get("/", response_model=list[ChatSchema], summary="Список чатов")
+@router.get("/", response_model=list[ChatSchema], summary="Список чатов", name="chats:get")
 async def get_chats(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],
@@ -26,7 +26,7 @@ async def get_chats(
     return await service.accounts_chats(account.id)
 
 
-@router.post("/", response_model=ChatSchema, summary="Создать чат")
+@router.post("/", response_model=ChatSchema, summary="Создать чат", name="chats:post")
 async def create_chat(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],
@@ -35,7 +35,7 @@ async def create_chat(
     return await service.create_chat(account.id, data)
 
 
-@router.get("/{chat_id}/", response_model=DetailedChatSchema, summary="Детали чата")
+@router.get("/{chat_id}/", response_model=DetailedChatSchema, summary="Детали чата", name="chat_id:get")
 async def chat_info(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],
@@ -44,7 +44,7 @@ async def chat_info(
     return await service.chat_info(account.id, chat_id)
 
 
-@router.put("/{chat_id}/", response_model=ChatSchema, summary="Обновить чат")
+@router.put("/{chat_id}/", response_model=ChatSchema, summary="Обновить чат", name="chat_id:put")
 async def update_chat(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],
@@ -54,7 +54,7 @@ async def update_chat(
     return await service.update_chat(account.id, data, chat_id)
 
 
-@router.delete("/{chat_id}/", summary="Удалить чат")
+@router.delete("/{chat_id}/", summary="Удалить чат", name="chat_id:delete")
 async def delete_chat(
     service: Annotated[get_service(ChatService), Depends()],
     account: Annotated[get_account_from_token, Depends()],
@@ -64,7 +64,7 @@ async def delete_chat(
 
 
 @router.get(
-    "/{chat_id}/history/", response_model=MessageEntities, summary="История чата"
+    "/{chat_id}/history/", response_model=MessageEntities, summary="История чата", name="chat_history:get"
 )
 async def chat_history(
     service: Annotated[get_service(ChatService), Depends()],
