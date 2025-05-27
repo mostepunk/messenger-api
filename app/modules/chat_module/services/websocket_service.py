@@ -7,27 +7,28 @@ from uuid import UUID
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.auth_module.db.cruds.account_crud import AccountCRUD
 from app.modules.auth_module.dependencies.jwt_decode import authenticate_websocket_user
 from app.modules.base_module.db.errors import ItemNotFoundError
 from app.modules.base_module.services.base_service import BaseService
 from app.modules.chat_module.db.cruds.chat_crud import ChatCRUD
 from app.modules.chat_module.db.cruds.message_crud import MessageCRUD
+from app.modules.chat_module.db.cruds.profile_crud import ProfileCRUD
 from app.modules.chat_module.services.deduplication_service import deduplication_service
 from app.modules.chat_module.websoket.connection_manager import connection_manager
 from app.settings import config
 from app.settings.base import ApiMode
 
 if TYPE_CHECKING:
-    from app.modules.auth_module.schemas.account import AccountDBSchema, ChatDBSchema
+    from app.modules.chat_module.schemas.chat_schemas import ChatDBSchema
     from app.modules.chat_module.schemas.message_schema import MessageDBSchema
+    from app.modules.chat_module.schemas.profile_schemas import ProfileDBSchema
 
 
 class WebsocketService(BaseService):
     def __init__(self, session: AsyncSession):
         super().__init__(session)
         self.manager = connection_manager
-        self.account_crud = AccountCRUD(session)
+        self.profile_crud = ProfileCRUD(session)
         self.message_crud = MessageCRUD(session)
         self.chat_crud = ChatCRUD(session)
         self.dedup_service = deduplication_service
@@ -38,13 +39,14 @@ class WebsocketService(BaseService):
 
         try:
             auth_message = await websocket.receive_text()
-            account_schema = await self.authorize_account(auth_message)
+            profile_schema = await self.authorize_account(auth_message)
 
-            if not account_schema:
+            if not profile_schema:
+                logging.info(f"Profile.ID {profile_schema} authorized")
                 await self.manager.close_as_unauthorized(websocket)
                 return
 
-            profile_id = account_schema.profile.id
+            profile_id = profile_schema.id
             await self.manager.connect(websocket, profile_id)
             await self.manager.user_authorized(websocket, profile_id, chat_id)
 
@@ -80,7 +82,7 @@ class WebsocketService(BaseService):
             logging.error(f"WebSocket connection error: {e}")
             await self.manager.close_as_internal_error(websocket)
 
-    async def authorize_account(self, auth_message: str) -> "AccountDBSchema | None":
+    async def authorize_account(self, auth_message: str) -> "ProfileDBSchema| None":
         try:
             auth_data = json.loads(auth_message)
             if auth_data.get("type") == "auth":
@@ -88,10 +90,12 @@ class WebsocketService(BaseService):
                 authenticated_user = await authenticate_websocket_user(token)
 
                 if authenticated_user:
-                    account_db: "AccountDBSchema" = await self.account_crud.get_by_id(
-                        authenticated_user.id
+                    profile_db: "ProfileDBSchema" = (
+                        await self.profile_crud.get_profile_by_account_id(
+                            authenticated_user.id
+                        )
                     )
-                    return account_db
+                    return profile_db
 
         except json.JSONDecodeError:
             logging.warning("Invalid auth message format")

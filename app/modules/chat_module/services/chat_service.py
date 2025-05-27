@@ -19,10 +19,7 @@ from app.modules.chat_module.schemas.chat_schemas import CreateChatSchema
 if TYPE_CHECKING:
     from app.modules.auth_module.schemas.account import AccountDBSchema
     from app.modules.chat_module.db.models.profile import ProfileModel
-    from app.modules.chat_module.schemas.profile_schemas import (
-        ProfileDBSchema,
-        ProfileSchema,
-    )
+    from app.modules.chat_module.schemas.profile_schemas import ProfileDBSchema
 
 
 class ChatService(BaseService):
