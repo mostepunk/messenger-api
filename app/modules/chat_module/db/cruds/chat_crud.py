@@ -38,12 +38,9 @@ class ChatCRUD(BaseCRUD[ChatSchema, ChatDBSchema, ChatModel]):
             return item
         return self._out_schema.model_validate(item)
 
-    async def add_members(self, chat_id: UUID, members: list["ProfileModel"]):
+    async def add_members(self, chat_id: UUID, members: list[UUID]):
         for member in members:
-            membership = ChatUsersModel(chat_id=chat_id, profile_id=member)
-            self.session.add(membership)
-
-        await self.session.commit()
+            self.session.add(ChatUsersModel(chat_id=chat_id, profile_id=member))
 
     async def full_chat_info(self, chat_id: UUID):
         query = (

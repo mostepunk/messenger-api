@@ -96,9 +96,13 @@ class ChatService(BaseService):
             not_found = list(set(members) - set([p.id for p in profiles]))
             raise MembersNotFound(f"{len(not_found)} members not found: {not_found}")
 
-        await self.chat_crud.add_members(chat.id, profiles)
+        chat_members = [member.id for member in chat.members]
+        new_members = list(set(members) - set(chat_members))
+        if new_members:
+            await self.chat_crud.add_members(chat.id, new_members)
+
         await self.session.commit()
-        logging.info(f"Chat.ID {chat.id} with {len(members)} members updated")
+        logging.debug(f"Chat.ID {chat.id} with {len(members)} members updated")
         return chat
 
     async def chat_info(self, account_id: UUID, chat_id: UUID):
