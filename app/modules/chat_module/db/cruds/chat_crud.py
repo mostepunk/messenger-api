@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from app.modules.base_module.db.cruds.base_crud import BaseCRUD
 from app.modules.base_module.db.errors import ItemNotFoundError
-from app.modules.chat_module.db.models.chat import ChatModel
+from app.modules.chat_module.db.models.chat import ChatModel, ChatUsersModel
 from app.modules.chat_module.schemas.chat_schemas import ChatDBSchema, ChatSchema
 
 if TYPE_CHECKING:
@@ -39,8 +39,11 @@ class ChatCRUD(BaseCRUD[ChatSchema, ChatDBSchema, ChatModel]):
         return self._out_schema.model_validate(item)
 
     async def add_members(self, chat_id: UUID, members: list["ProfileModel"]):
-        chat = await self.get_by_id(chat_id, return_raw=True)
-        chat.members = members
+        for member in members:
+            membership = ChatUsersModel(chat_id=chat_id, profile_id=member)
+            self.session.add(membership)
+
+        await self.session.commit()
 
     async def full_chat_info(self, chat_id: UUID):
         query = (

@@ -57,7 +57,7 @@ class ChatService(BaseService):
             not_found = list(set(members) - set([p.id for p in profiles]))
             raise MembersNotFound(f"{len(not_found)} members not found: {not_found}")
 
-        await self.chat_crud.add_members(chat.id, profiles)
+        await self.chat_crud.add_members(chat.id, members)
         await self.session.commit()
         logging.info(f"Chat.ID {chat.id} with {len(members)} members created")
         return chat

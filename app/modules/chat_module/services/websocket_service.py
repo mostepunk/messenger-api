@@ -116,26 +116,32 @@ class WebsocketService(BaseService):
                 await self.manager.close_as_not_a_member(websocket)
                 return False
 
+            had_multiple_devices_before = (
+                await self.manager.profile_has_multiple_devices_in_chat(
+                    chat_id, profile_id
+                )
+            )
+            await self.manager.join_chat(profile_id, chat_id)
             # не посылать уведомление, что пользователь вошел в чат, если он зашел с другого устройства
-            if await self.manager.profile_has_multiple_devices_in_chat(
-                chat_id, profile_id
-            ):
+            if had_multiple_devices_before:
                 logging.debug(
                     f"Profile.ID {profile_id} connected from additional device to chat {chat_id}"
                 )
-                return True
+                await self.manager.send_chat_message(
+                    {
+                        "type": "user_joined",
+                        "chat_id": str(chat_id),
+                        "user_id": str(profile_id),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                    chat_id,
+                    exclude_user=profile_id,
+                )
+            else:
+                logging.debug(
+                    f"Profile.ID {profile_id} connected from additional device to chat {chat_id}"
+                )
 
-            await self.manager.join_chat(profile_id, chat_id)
-            await self.manager.send_chat_message(
-                {
-                    "type": "user_joined",
-                    "chat_id": str(chat_id),
-                    "user_id": str(profile_id),
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-                chat_id,
-                exclude_user=profile_id,
-            )
             return True
 
         except ItemNotFoundError:
@@ -221,8 +227,15 @@ class WebsocketService(BaseService):
     ):
         """Обработка покидания чата"""
         try:
+            was_in_chat_before = await self.manager.profile_is_in_chat(
+                chat_id, profile_id
+            )
             await self.manager.leave_chat(profile_id, chat_id)
-            if not await self.manager.profile_is_in_chat(chat_id, profile_id):
+            is_still_in_chat = await self.manager.profile_is_in_chat(
+                chat_id, profile_id
+            )
+
+            if was_in_chat_before and not is_still_in_chat:
                 await self.manager.send_chat_message(
                     {
                         "type": "user_left",
