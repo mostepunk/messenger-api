@@ -11,7 +11,7 @@ from app.modules.chat_module.services.websocket_service import WebsocketService
 router = APIRouter()
 
 
-@router.get("/html", summary="WebUI для чата")
+@router.get("/ui/", summary="WebUI для чата")
 async def get():
     return HTMLResponse(HTML_CHAT)
 
