@@ -116,7 +116,6 @@ class WebsocketService(BaseService):
                 await self.manager.close_as_not_a_member(websocket)
                 return False
 
-            await self.manager.join_chat(profile_id, chat_id)
             # не посылать уведомление, что пользователь вошел в чат, если он зашел с другого устройства
             if await self.manager.profile_has_multiple_devices_in_chat(
                 chat_id, profile_id
@@ -126,6 +125,7 @@ class WebsocketService(BaseService):
                 )
                 return True
 
+            await self.manager.join_chat(profile_id, chat_id)
             await self.manager.send_chat_message(
                 {
                     "type": "user_joined",
@@ -287,12 +287,12 @@ class WebsocketService(BaseService):
                     "sent_at": datetime.utcnow(),
                 }
             )
+            await self.dedup_service.mark_message_sent(reason, message.id)
             await self.session.commit()
             await self.manager.broadcast_to_chat(
                 {"type": "new_message", "message": message.model_dump(mode="json")},
                 chat_id,
             )
-            await self.dedup_service.mark_message_sent(reason, message.id)
 
         except Exception as e:
             logging.error(f"Error sending message: {e}")
@@ -314,13 +314,12 @@ class WebsocketService(BaseService):
                     chat_id, profile_id, last_read_message_id
                 )
             )
-            await self.session.commit()
-
             if newly_read_message_ids:
                 # Получаем детальную информацию о прочитанных сообщениях для уведомления
                 read_messages_info = await self.message_crud.get_messages_by_ids(
                     newly_read_message_ids
                 )
+                await self.session.commit()
                 await self.manager.broadcast_to_chat(
                     {
                         "type": "messages_read",
@@ -351,9 +350,12 @@ class WebsocketService(BaseService):
                         },
                         sender_id,
                     )
+            else:
+                await self.session.commit()
 
         except Exception as e:
             logging.error(f"Error marking messages as read: {e}")
+            await self.session.rollback()
 
     async def handle_mark_single_read(self, message_data: dict, profile_id: UUID):
         """Обработка отметки одного сообщения как прочитанного"""
@@ -367,20 +369,25 @@ class WebsocketService(BaseService):
             was_marked = await self.message_crud.mark_as_read_by_profile(
                 message_uuid, profile_id
             )
-            message_db = await self.message_crud.get_by_id(message_uuid)
+            if was_marked:
+                message_db = await self.message_crud.get_by_id(message_uuid)
+                await self.session.commit()
 
-            await self.manager.send_personal_message(
-                {
-                    "type": "message_read",
-                    "message_id": str(message_uuid),
-                    "read_by": str(profile_id),
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-                message_db.sender.id,
-            )
+                await self.manager.send_personal_message(
+                    {
+                        "type": "message_read",
+                        "message_id": str(message_uuid),
+                        "read_by": str(profile_id),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                    message_db.sender.id,
+                )
+            else:
+                await self.session.commit()
 
         except Exception as e:
             logging.error(f"Error marking single message as read: {e}")
+            await self.session.rollback()
 
     async def handle_typing(self, message_data: dict, user_id: UUID, chat_id: UUID):
         """Обработка индикатора печати"""
