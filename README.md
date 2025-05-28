@@ -176,7 +176,7 @@
 - `PUT /chats/{chat_id}` - Изменение чата
 - `GET /chats/{chat_id}/` - Информация о чате
 - `GET /chats/{chat_id}/history/` - История сообщений
-- `GET /chats/ui` - Интерфейс теста чатов
+- `GET /chats/ui/` - Интерфейс теста чатов
 
 ### WebSocket
 - `WS /chats/{chat_id}/ws` - WebSocket соединение для чата
